@@ -2,6 +2,8 @@
 Design digital circuits in C. Simulate really fast with a regular compiler! <br><br>
 ![image](https://user-images.githubusercontent.com/8551129/154831058-58d46e66-95ee-456f-86af-d6b71917de36.png)
 
+Can it run algorithms without a CPU? Yes, the algorithm gets implemented as hardware, with gates interconnected to match the C code logic. Complex algorithms are possible like rendering graphics as demoed.
+
 # Quickstart
 Install the minimal dependencies including GCC, Silice and Verilator. SDL library for graphical simulations. For synthesis on actual hardware, Vivado or Yosys+NextPNR or Quartus, and OpenFPGALoader (currently supports the Arty A7 board and the Terasic DE0-Nano)
 
@@ -13,7 +15,8 @@ Synth options: <br>
 `$ make XILINXTOOLCHAIN=yosys+nextpnr load` overrides the default toolchain for the Arty (Vivado)
 
 # Graphical demo
-`$ cd demos/vga && make` should bring a window rendering graphics at high FPS, and print the FPS on closing.
+
+`$ cd demos/vga && make` should bring a window that renders graphics at high FPS (on your PC), and print the FPS on closing.
 
 ![image](https://user-images.githubusercontent.com/8551129/154829656-1e1e916e-e1dd-460c-805a-50c46dd325b7.png)
 
