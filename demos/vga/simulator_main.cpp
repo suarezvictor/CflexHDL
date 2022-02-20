@@ -73,7 +73,7 @@ void run()
 
 int main()
 {
-	fb_init(FRAME_WIDTH, FRAME_HEIGHT, false, &fb);
+	fb_init(FRAME_WIDTH, FRAME_HEIGHT, false, &fb); //set vsync parameter to true to limit FPS
 	uint64_t start_time = higres_ticks();
 
 	try { run(); } catch(...) {} //exits by exception
