@@ -1,4 +1,5 @@
-//(C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+# Basic C to C (identity) generator
+# (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 
 class CFlexGenerator:
     def __init__(self, indentation="  "):

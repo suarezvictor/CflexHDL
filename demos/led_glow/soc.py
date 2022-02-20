@@ -1,3 +1,4 @@
+# Glue for led demo & generic SoC builder
 # Copyright (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 
 from migen import *
@@ -23,8 +24,13 @@ def build(board, top_v):
 	top.specials += build_top_instance(platform)
 	platform.build(top)
 
-import litex_boards.platforms.de0nano as board # select for Terasic DE0-Nano board
-#import litex_boards.platforms.arty as board # select for Digilent Arty board
-build(board, "./build/top_instance.v")
+def build_board(verilogsrc, boardmodule):
+	import importlib
+	board = importlib.import_module(boardmodule)
+	build(board, verilogsrc)
+
+if __name__ == "__main__":
+	import sys
+	build_board(verilogsrc=sys.argv[1], boardmodule=sys.argv[2])
 
 
