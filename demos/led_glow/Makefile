@@ -32,11 +32,11 @@ $(BUILD)/top_instance.v: led_glow.cc $(PARSER)
 
 $(BUILD)/top.rbf: $(BUILD)/top_instance.v soc.py
 	python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.terasic_de0nano
-	@echo openFPGALoader -b $(BOARD) $(BUILD)/top.rbf > $(BUILD)/load.sh
+	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
 
 $(BUILD)/top.bit: $(BUILD)/top_instance.v soc.py
 	python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.digilent_arty $(XILINXTOOLCHAIN)
-	@echo openFPGALoader -b $(BOARD) $(BUILD)/top.bit > $(BUILD)/load.sh
+	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
 
 load: bitstream
 	sh $(BUILD)/load.sh
