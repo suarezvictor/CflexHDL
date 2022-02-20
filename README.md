@@ -5,7 +5,7 @@ Design digital circuits in C. Simulate really fast with a regular compiler! <br>
 So can it run algorithms without a CPU? Yes, the algorithm gets implemented as hardware, with gates interconnected to match the C code logic. Complex algorithms are possible like rendering graphics as demoed.
 
 # Quickstart
-Install the minimal dependencies including GCC, Silice and Verilator. SDL library for graphical simulations. For synthesis on actual hardware, Vivado or Yosys+NextPNR or Quartus, and OpenFPGALoader (currently supports the Arty A7 board and the Terasic DE0-Nano)
+Install the minimal dependencies including GCC, Python's libclang, Sylefeb's Silice and Verilator. SDL library for graphical simulations. For synthesis on actual hardware, Vivado or Yosys+NextPNR or Quartus, and OpenFPGALoader (currently supports the Arty A7 board and the Terasic DE0-Nano)
 
 # Led glow demo
 `$ cd demos/led_glow && make` should print simulation results <br>
