@@ -1,7 +1,7 @@
 GENERATOR?=../../src/silice_generator.py
 PARSER=../../cflexparser/clangparser.so
 BUILD?=build
-BOARD?=de0nano
+BOARD?=arty
 INCLUDE+=-I../../include -I../../src/
 CFLAGS+=-O2 $(INCLUDE)
 
@@ -15,7 +15,9 @@ compile: $(BUILD)/compiled
 $(BUILD)/compiled: vga_flyover3d.cc simulator_main.cpp
 	mkdir -p $(BUILD)
 	cpp -DCFLEX_SIMULATION $(INCLUDE) -E vga_flyover3d.cc > $(BUILD)/compiled_simulator.cpp
-	g++ $(CFLAGS) $(shell sdl2-config --cflags --libs) simulator_main.cpp ../../src/sim_fb.c -o $(BUILD)/compiled
+	g++ $(CFLAGS) $(shell sdl2-config --cflags) simulator_main.cpp ../../src/sim_fb.c $(shell sdl2-config --libs) -o $(BUILD)/compiled
+
+verilog: $(BUILD)/top_instance.v
 
 $(BUILD)/top_instance.v: vga_flyover3d.cc $(PARSER)
 	mkdir -p $(BUILD)
@@ -25,13 +27,22 @@ $(BUILD)/top_instance.v: vga_flyover3d.cc $(PARSER)
 	cat top_glue.ice >> $(BUILD)/top_instance.ice
 	silice -f ../../external/silice/bare.v $(BUILD)/top_instance.ice -o $(BUILD)/top_instance.v --export vga_demo
 
-bitstream: $(BUILD)/terasic_de0nano/gateware/terasic_de0nano.rbf
+bitstream: $(BOARD)
+
+de0nano: $(BUILD)/terasic_de0nano/gateware/terasic_de0nano.rbf
+
+arty: $(BUILD)/digilent_arty/gateware/digilent_arty.bit
 
 $(BUILD)/terasic_de0nano/gateware/terasic_de0nano.rbf: $(BUILD)/top_instance.v litex_soc.py
-	python3 litex_soc.py --cpu-type=None
+	python3 litex_soc.py $(BOARD) --cpu-type=None
+	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
 
-load: $(BUILD)/terasic_de0nano/gateware/terasic_de0nano.rbf
-	openFPGALoader -b $(BOARD) $^
+$(BUILD)/digilent_arty/gateware/digilent_arty.bit: $(BUILD)/top_instance.v litex_soc.py
+	python3 litex_soc.py $(BOARD) --cpu-type=None
+	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
+
+load: bitstream
+	sh $(BUILD)/load.sh
 
 verilator: $(BUILD)/VM_vga_demo
 	$(BUILD)/VM_vga_demo
