@@ -8,7 +8,7 @@
 void led_glow(uint1_t& led)
 {
   union {
-    uint25_t counter; //counter cam be accesed as raw or by bitfields
+    uint25_t counter; //counter can be accesed as raw or by bitfields
     struct { uint25_t :16; uint25_t mid:8; uint25_t msb:1; } counter_bits;
   };
 
