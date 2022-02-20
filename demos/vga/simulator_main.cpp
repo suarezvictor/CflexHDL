@@ -2,7 +2,7 @@
 // Copyright (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 //
 // just copy your frame_display() render logic to build/compiled_simulator.cpp
-// or call verilator to generate VM_frame_display class
+// or call verilator to generate VM_vga_demo class
 
 #define FRAME_WIDTH 640
 #define FRAME_HEIGHT 480
