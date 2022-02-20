@@ -131,7 +131,7 @@ void frame_display(
             div(maxv, offs_y); //div <- (maxv,offs_y);
           }
 
-          u = pos_u + ((pix_x - 320) * cur_inv_y) >> 8; //clang gives precedence warnings
+          u = (pos_u + ((pix_x - 320) * cur_inv_y)) >> 8; //u = pos_u + ((pix_x - 320)>>1); //this to test without multipliers
           v = pos_v+ cur_inv_y_bitsB._0_6; //cur_inv_y[0,6]
 
           if (u_bits._5_1 ^ v_bits._5_1) { //u[5,1] ^ v[5,1]
