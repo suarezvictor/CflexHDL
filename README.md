@@ -1,5 +1,6 @@
 # CFlexHDL
-Design digital circuits in C. Simulate really fast with a regular compiler.
+Design digital circuits in C. Simulate really fast with a regular compiler! <br><br>
+![image](https://user-images.githubusercontent.com/8551129/154831058-58d46e66-95ee-456f-86af-d6b71917de36.png)
 
 # Quickstart
 Install the minimal dependencies including GCC, Silice and Verilator. SDL library for graphical simulations. For synthesis on actual hardware, Vivado or Yosys+NextPNR or Quartus, and OpenFPGALoader (currently supports the Arty A7 board and Terasic DE0-Nano)
