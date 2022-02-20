@@ -2,7 +2,7 @@
 // Copyright (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 //
 // just copy your frame_display() render logic to build/compiled_simulator.cpp
-// or call verilator to generate VM_frame_display class
+// or call verilator to generate VM_vga_demo class
 
 #define FRAME_WIDTH 640
 #define FRAME_HEIGHT 480
@@ -73,7 +73,7 @@ void run()
 
 int main()
 {
-	fb_init(FRAME_WIDTH, FRAME_HEIGHT, false, &fb);
+	fb_init(FRAME_WIDTH, FRAME_HEIGHT, false, &fb); //set vsync parameter to true to limit FPS
 	uint64_t start_time = higres_ticks();
 
 	try { run(); } catch(...) {} //exits by exception

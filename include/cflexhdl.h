@@ -5,6 +5,7 @@
 
 #include "silice_compat.h"
 
+//TODO: add missing widths
 typedef uint1 uint1_t;
 typedef uint4 uint4_t;
 typedef uint6 uint6_t;
