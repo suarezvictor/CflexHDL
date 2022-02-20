@@ -17,20 +17,22 @@ def build_top_instance(platform):
 	    i_clock = ClockSignal("sys")
     	)
 
-def build(board, top_v):
-	platform = board.Platform()
-	platform.add_source(top_v)
+def build(top_verilog, boardmodule, toolchain):
+	import importlib
+	board = importlib.import_module(boardmodule)
+
+	if toolchain:
+		platform = board.Platform(toolchain=toolchain)
+	else:
+		platform = board.Platform()
+	platform.add_source(top_verilog)
+
 	top = Module()
 	top.specials += build_top_instance(platform)
 	platform.build(top)
 
-def build_board(verilogsrc, boardmodule):
-	import importlib
-	board = importlib.import_module(boardmodule)
-	build(board, verilogsrc)
-
 if __name__ == "__main__":
 	import sys
-	build_board(verilogsrc=sys.argv[1], boardmodule=sys.argv[2])
+	build(top_verilog=sys.argv[1], boardmodule=sys.argv[2], toolchain=sys.argv[3] if len(sys.argv) > 3 else None)
 
 

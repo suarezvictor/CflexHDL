@@ -4,6 +4,7 @@ BUILD?=build
 BOARD?=arty
 INCLUDE+=-I../../include
 CFLAGS+=-O2 $(INCLUDE)
+XILINXTOOLCHAIN?=vivado #for yosys+nextpnr make sure fasm2frames.py is on PATH (and on front of PATH...)
 
 all: run
 
@@ -34,7 +35,7 @@ $(BUILD)/top.rbf: $(BUILD)/top_instance.v soc.py
 	@echo openFPGALoader -b $(BOARD) $(BUILD)/top.rbf > $(BUILD)/load.sh
 
 $(BUILD)/top.bit: $(BUILD)/top_instance.v soc.py
-	python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.digilent_arty
+	python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.digilent_arty $(XILINXTOOLCHAIN)
 	@echo openFPGALoader -b $(BOARD) $(BUILD)/top.bit > $(BUILD)/load.sh
 
 load: bitstream
