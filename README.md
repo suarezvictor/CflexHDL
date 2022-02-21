@@ -1,4 +1,4 @@
-# CFlexHDL
+# CflexHDL
 Design digital circuits in C. Simulate really fast with a regular compiler! <br><br>
 ![image](https://user-images.githubusercontent.com/8551129/154831058-58d46e66-95ee-456f-86af-d6b71917de36.png)
 
