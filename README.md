@@ -3,6 +3,8 @@ Design digital circuits in C. Simulate really fast with a regular compiler! <br>
 ![image](https://user-images.githubusercontent.com/8551129/154831058-58d46e66-95ee-456f-86af-d6b71917de36.png)
 
 So can it run algorithms without a CPU? Yes, the algorithm gets implemented as hardware, with gates interconnected to match the C code logic. Complex algorithms are possible like rendering graphics as demoed.
+# TL;DR
+See the [CflexHDL slides](https://speakerdeck.com/suarezvictor/cflexhdl)
 
 # Quickstart
 Install the minimal dependencies including GCC, Python's libclang, Sylefeb's Silice and Verilator. SDL library for graphical simulations. For synthesis on actual hardware, Vivado or Yosys+NextPNR or Quartus, and OpenFPGALoader (currently supports the Arty A7 board and the Terasic DE0-Nano)
