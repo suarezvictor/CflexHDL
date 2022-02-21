@@ -24,7 +24,7 @@ Synth options: <br>
 
 `$ make verilator` should bring the same window but at slower FPS
 
-`$ make load` synths and loads the bitstream on the Arty board with a VGA PMOD on JB-JC. You should be able to see your PC and FPGA both running at 60 FPS*, side to side:<br>
+`$ make load` synths and loads the bitstream on the Arty board with a VGA PMOD on JB-JC. You should be able to see your PC and FPGA both running at 60 FPS*, side to side (the blurring is proof that the image was moving when taking the picture):<br>
 
 ![image](doc/laptop%2BFPGA%203d%20demo.jpeg)
 <br><br>
