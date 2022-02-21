@@ -9,13 +9,14 @@ XILINXTOOLCHAIN?=vivado #for yosys+nextpnr make sure fasm2frames.py is on PATH (
 all: run
 
 run: compile
+	@echo
 	@$(BUILD)/compiled
 
 compile: $(BUILD)/compiled
 
 $(BUILD)/compiled: led_glow.cc simulator_main.cpp
 	@mkdir -p $(BUILD)
-	@$(CXX) $(CFLAGS) simulator_main.cpp -o $(BUILD)/compiled
+	time $(CXX) $(CFLAGS) simulator_main.cpp -o $(BUILD)/compiled
 
 bitstream: $(BOARD)
 
@@ -31,11 +32,11 @@ $(BUILD)/top_instance.v: led_glow.cc $(PARSER)
 	silice -f ../../external/silice/bare.v $(BUILD)/top_instance.ice -o $(BUILD)/top_instance.v --export led_glow
 
 $(BUILD)/top.rbf: $(BUILD)/top_instance.v soc.py
-	python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.terasic_de0nano
+	time python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.terasic_de0nano
 	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
 
 $(BUILD)/top.bit: $(BUILD)/top_instance.v soc.py
-	python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.digilent_arty $(XILINXTOOLCHAIN)
+	time python3 soc.py $(BUILD)/top_instance.v litex_boards.platforms.digilent_arty $(XILINXTOOLCHAIN)
 	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
 
 load: bitstream
