@@ -4,18 +4,18 @@
 // just copy your frame_display() render_pixel logic to build/compiled_simulator.cpp
 // or call verilator to generate VM_vga_demo class
 
-#define FRAME_WIDTH 640
-#define FRAME_HEIGHT 480
-
 #include <stdio.h>
 #include <stdint.h>
 #include "sim_fb.h"
+
+#include "vga_config.h"
+#include "cflexhdl.h"
+
 
 fb_handle_t fb;
 unsigned framecount = 0;
 static uint32_t pixels[FRAME_HEIGHT][FRAME_WIDTH];
 
-#include "cflexhdl.h"
 
 #ifndef CFLEX_VERILATOR
 struct VM_vga_demo //mimics Verilator variables
@@ -33,27 +33,30 @@ VM_vga_demo *top = new VM_vga_demo;
 inline void render_pixel()
 {
   //printf("x, y %d, %d\n", top->out_pix_x, top->out_pix_y);
-  if(top->out_video_de)
-    pixels[top->out_pix_y][top->out_pix_x] =
-      ((top->out_video_b) | (top->out_video_g << 8) | (top->out_video_r << 16)) << 2;  //original color: 6-bit
+  if(!top->out_video_de)
+    return;
+
+  pixels[top->out_pix_y][top->out_pix_x] =
+    ((top->out_video_b) | (top->out_video_g << 8) | (top->out_video_r << 16)) << 2;  //original color: 6-bit
 }
 
 inline bool simulation_display()
 {
-    if(top->out_pix_x == 0 && top->out_pix_y == 0) //if about to start frame
-    {
-	  if(fb_should_quit())
-		return false;
-	  fb_update(&fb, pixels, sizeof(pixels[0]));
-      ++framecount;
-    }
-	return true;
+  if(top->out_pix_x != 0 || top->out_pix_y != 0) //if not about to start
+    return true;
+
+  if(fb_should_quit())
+	return false;
+
+  fb_update(&fb, pixels, sizeof(pixels[0]));
+  ++framecount;
+  return true;
 }
 
 #ifndef CFLEX_VERILATOR
-#include "vga.cc"
+#include "vga.cc" //timing logic
 #ifdef CFLEX_NO_COROUTINES
-void wait_clk()
+inline void wait_clk() //this is a fast shortcut if clocking all modules is disabled
 {
   render_pixel();
   vga_timing(top->out_video_hs, top->out_video_vs, top->out_video_de, top->out_pix_x, top->out_pix_y);
@@ -61,10 +64,9 @@ void wait_clk()
 	throw false;
 }
 #endif
-#else
 #endif
 
-#include "build/compiled_simulator.cpp"
+#include "build/compiled_simulator.cpp" //actual source to simulate
 
 void run()
 {
@@ -79,13 +81,14 @@ void run()
   }
 #else
 #ifdef CFLEX_NO_COROUTINES
-  //runs in loop until the vga controller throws exception
-  try { 
+  
+  try {
+    //function runs in loop until the vga controller throws exception
     frame_display(top->out_pix_x, top->out_pix_y, top->out_video_de, top->out_video_vs,
       top->out_video_r, top->out_video_g, top->out_video_b);
-  } catch(...) {} //exits by exception
+  }
+  catch(...) {} //only exits by exception
 #else
-	printf("init\n");
 
   auto fd = frame_display(top->out_pix_x, top->out_pix_y, top->out_video_de, top->out_video_vs,
     top->out_video_r, top->out_video_g, top->out_video_b);

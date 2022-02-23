@@ -39,6 +39,8 @@ typedef uint25 uint25_t;
 
 #endif
 
+#define CFLEX_INLINE __attribute__((always_inline))
+
 #endif
 
 

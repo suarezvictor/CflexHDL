@@ -6,9 +6,7 @@
 // *https://github.com/sylefeb/Silice/blob/master/projects/vga_demo/vga_flyover3d.ice
 
 #include "cflexhdl.h"
-
-#define FRAME_WIDTH 640
-#define FRAME_HEIGHT 480
+#include "vga_config.h"
 
 /*
 $include('vga_demo_main.ice')
