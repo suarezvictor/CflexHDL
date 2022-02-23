@@ -1,10 +1,10 @@
 // Basic VGA signal generation (aimed to simulation)
 // (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 
-void vga_timing(uint1 &vga_hs, uint1 &vga_vs, uint1 &vga_de, uint10& vga_out_x, uint10 &vga_out_y)
+MODULE vga_timing(uint1 &vga_hs, uint1 &vga_vs, uint1 &vga_de, uint10& vga_out_x, uint10 &vga_out_y)
 {
 
-#if defined(CFLEX_VERILATOR) || defined(CFLEX_SIMULATION) //hack until inout paramenters are supported
+#ifdef CFLEX_NO_COROUTINES
 	static uint10 vga_x = 0;
 	static uint10 vga_y = 0;
 #else

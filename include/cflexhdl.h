@@ -17,4 +17,29 @@ typedef uint15 uint15_t;
 typedef uint16 uint16_t;
 typedef uint25 uint25_t;
 
+
+#if !defined(CFLEX_SIMULATION)
+
+#define always() 1
+#define wait_clk() {}
+#define MODULE void
+
+#else
+
+#define always() ({wait_clk(); true;})
+
+#ifdef CFLEX_NO_COROUTINES
+#define MODULE void
+//wait_clk is custom defined
+#else
+
+#include "coro.h"
+#define wait_clk() co_yield 0
+#define MODULE Coroutine
+
+#endif
+
+#endif
+
+
 #endif //__SILICE_COMPAT_H__

@@ -5,7 +5,7 @@
 // (C) 2020 Sylvain Lefebvre (original code, MIT LICENSE)
 // *https://github.com/sylefeb/Silice/blob/master/projects/vga_demo/vga_flyover3d.ice
 
-#include "silice_compat.h" //just definitions of uint1, uint9, etc.
+#include "cflexhdl.h"
 
 #define FRAME_WIDTH 640
 #define FRAME_HEIGHT 480
@@ -44,7 +44,7 @@ algorithm frame_display(
 */
 
 typedef uint8 uint_color_depth; //FIXME: should match 6 bits
-void frame_display(
+MODULE frame_display(
   const uint10 &pix_x,
   const uint10 &pix_y,
   const uint1  &pix_active,
@@ -174,4 +174,4 @@ void frame_display(
 }
 
 // -------------------------
-#include "vga.cc"
+

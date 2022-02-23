@@ -3,7 +3,10 @@ PARSER=../../cflexparser/clangparser.so
 BUILD?=build
 BOARD?=arty
 INCLUDE+=-I../../include -I../../src/
-CFLAGS+=-O2 $(INCLUDE)
+CFLAGS+=-O3 $(INCLUDE) -DCFLEX_NO_COROUTINES #comment to enable coroutines
+CLANGFLAGS+=-Wno-deprecated -Wno-deprecated-experimental-coroutine -stdlib=libc++ -std=c++20 
+SDL_CFLAGS=$(shell sdl2-config --cflags)
+SDL_LIBS=$(shell sdl2-config --libs)
 
 all: run
 
@@ -12,16 +15,19 @@ run: compile
 
 compile: $(BUILD)/compiled
 
-$(BUILD)/compiled: vga_flyover3d.cc simulator_main.cpp
+$(BUILD)/compiled_simulator.cpp: vga_flyover3d.cc
 	mkdir -p $(BUILD)
-	cpp -DCFLEX_SIMULATION $(INCLUDE) -E vga_flyover3d.cc > $(BUILD)/compiled_simulator.cpp
-	g++ $(CFLAGS) $(shell sdl2-config --cflags) simulator_main.cpp ../../src/sim_fb.c $(shell sdl2-config --libs) -o $(BUILD)/compiled
+	cat vga_flyover3d.cc > $(BUILD)/compiled_simulator.cpp
+
+$(BUILD)/compiled: vga_flyover3d.cc simulator_main.cpp $(BUILD)/compiled_simulator.cpp
+	#g++ -DCFLEX_SIMULATION $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
+	clang++ -DCFLEX_SIMULATION $(CLANGFLAGS) $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
 
 verilog: $(BUILD)/top_instance.v
 
-$(BUILD)/top_instance.v: vga_flyover3d.cc $(PARSER)
+$(BUILD)/top_instance.v: vga_flyover3d.cc ../../src/vga.cc $(PARSER)
 	mkdir -p $(BUILD)
-	cpp $(INCLUDE) -E vga_flyover3d.cc > $(BUILD)/top_instance.cpp
+	cpp $(INCLUDE) -E -include vga_flyover3d.cc ../../src/vga.cc -o $(BUILD)/top_instance.cpp
 	cp includes.ice $(BUILD)/top_instance.ice #FIXME: forced include
 	$(GENERATOR) $(BUILD)/top_instance.cpp $(CFLAGS)>> $(BUILD)/top_instance.ice
 	cat top_glue.ice >> $(BUILD)/top_instance.ice
@@ -47,8 +53,8 @@ load: bitstream
 verilator: $(BUILD)/VM_vga_demo
 	$(BUILD)/VM_vga_demo
 
-$(BUILD)/VM_vga_demo: $(BUILD)/top_instance.v simulator_main.cpp
-	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $^ --top-module M_vga_demo --exe simulator_main.cpp ../../src/sim_fb.c -CFLAGS -DCFLEX_VERILATOR -CFLAGS -I../../../include -CFLAGS $(shell sdl2-config --cflags) -LDFLAGS $(shell sdl2-config --libs)
+$(BUILD)/VM_vga_demo: $(BUILD)/top_instance.v simulator_main.cpp $(BUILD)/compiled_simulator.cpp
+	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $(BUILD)/top_instance.v --top-module M_vga_demo --exe simulator_main.cpp ../../src/sim_fb.c -CFLAGS -DCFLEX_VERILATOR -CFLAGS -I../../../include -CFLAGS -I../../../src/ -CFLAGS $(shell sdl2-config --cflags) -LDFLAGS $(shell sdl2-config --libs)
 	cd build && make -f VM_vga_demo.mk
 
 $(PARSER):
