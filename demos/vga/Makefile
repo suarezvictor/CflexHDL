@@ -20,8 +20,8 @@ $(BUILD)/compiled_simulator.cpp: vga_flyover3d.cc
 	cat vga_flyover3d.cc > $(BUILD)/compiled_simulator.cpp
 
 $(BUILD)/compiled: vga_flyover3d.cc simulator_main.cpp $(BUILD)/compiled_simulator.cpp
-	#g++ -DCFLEX_SIMULATION $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
-	clang++ -DCFLEX_SIMULATION $(CLANGFLAGS) $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
+	g++ -DCFLEX_SIMULATION $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
+	#clang++ -DCFLEX_SIMULATION $(CLANGFLAGS) $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
 
 verilog: $(BUILD)/top_instance.v
 

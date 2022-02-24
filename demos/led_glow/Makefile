@@ -3,7 +3,7 @@ PARSER=../../cflexparser/clangparser.so
 BUILD?=build
 BOARD?=arty
 INCLUDE+=-I../../include
-CFLAGS+=-O2 $(INCLUDE)
+CFLAGS+=-O2 $(INCLUDE) -DCFLEX_NO_COROUTINES
 XILINXTOOLCHAIN?=vivado #for yosys+nextpnr make sure fasm2frames.py is on PATH (and on front of PATH...)
 
 all: run
