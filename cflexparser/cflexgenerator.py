@@ -1,5 +1,6 @@
 # Basic C to C (identity) generator
 # (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+import sys
 
 class CFlexGenerator:
     def __init__(self, indentation="  "):
@@ -48,7 +49,7 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
     def generate_init_list(self, expr):
         return "{" + self.generate_expr(expr, ", ") + "}"
 
-    def generate_member_ref_expr(self, parentexpr, name):
+    def generate_member_ref_expr(self, parentexpr, name, parenttyp):
         paren = self.generate_expr(parentexpr)
         if paren: paren += "."
         return paren + name
@@ -87,10 +88,10 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
         return self.ind + stmt + "\n"
 
     def generate_if_stmt(self, cond, then_stmt, else_stmt):
-        s = "\n" + self.ind + "if(" + cond + ")" + then_stmt
+        s = "\n" + self.ind + "if(" + cond + ") " + then_stmt
         if else_stmt is None:
             return s
-        s += "\n" + self.ind + "else"
+        s += "\n" + self.ind + "else "
         return s + else_stmt
 
     def generate_conditional_operator(self, cond, then_expr, else_expr):
