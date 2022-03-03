@@ -50,14 +50,23 @@ def is_numeric_type(typ):
 class CFlexPipelineCGenerator(CFlexCGenerator):
     def generate_typedef_decl(self, decltyp, name):
         if is_numeric_type(name):
-          return super().generate_typedef_decl(decltyp, name)
+          return "" #numerics are intrisic #super().generate_typedef_decl(decltyp, name)
         if "<" in decltyp: return "//typedef does not support for template types: " + decltyp
         return "#define " + name + " " + decltyp #replace typedef by macro
 
-    def generate_var_decl(self, decltyp, name, has_value, valueexpr):
-        if not decltyp.startswith("const "):
-          return super().generate_var_decl(decltyp, name, has_value, valueexpr)
-        return "#define " + name + "\t" + self.generate_expr(valueexpr)
+    def generate_function_decl(self, rettyp, name, argsexpr, stmtexpr):
+        s = super().generate_function_decl(rettyp, name, argsexpr, stmtexpr)
+        if not stmtexpr: #skip prototypes
+            return "//" + s
+        return s
+
+    def generate_var_decl(self, decltyp, name, has_value, valueexpr, storage):
+        if decltyp.startswith("const "):
+          return "#define " + name + "\t" + self.generate_expr(valueexpr)
+        s = super().generate_var_decl(decltyp, name, has_value, valueexpr, storage)
+        if storage: #skip all storage types different from ""
+          return "//" + s
+        return s
 
     def generate_binary_operator(self, lhs, op, rhs): #replace &&, || by &, |
         if op in ["||", "&&"]:

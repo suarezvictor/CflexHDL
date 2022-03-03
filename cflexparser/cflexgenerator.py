@@ -66,8 +66,9 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
     def generate_typedef_decl(self, decltyp, name):
         return "typedef " + decltyp + " " + name + ";"
 
-    def generate_var_decl(self, decltyp, name, has_value, valueexpr):
-        s = decltyp + " " + name
+    def generate_var_decl(self, decltyp, name, has_value, valueexpr, storage):
+        storage = storage + " " if storage else ""
+        s = storage + decltyp + " " + name
         if not has_value:
             return s + ";"
         return s + " = " + self.generate_expr(valueexpr) + ";"
@@ -105,7 +106,7 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
         s += "(" + self.generate_expr(argsexpr, ", ") + ")"
         print(s+";", file=sys.stderr)
 
-        if stmtexpr is None:
+        if not stmtexpr: #None or empty
             s += ";"  # just a prototype
         else:
             s += "\n" + self.generate_expr(stmtexpr)
