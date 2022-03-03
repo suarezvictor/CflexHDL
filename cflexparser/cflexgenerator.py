@@ -34,10 +34,10 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
     def generate_field_decl(self, fieldtyp, name):
         return fieldtyp + " " + name + "; "
 
-    def generate_cxx_functional_castexpr(self, target_type, expr):
+    def generate_cxx_functional_castexpr(self, target_type, expr, expr_type):
         return target_type + "(" + self.generate_expr(expr) + ")"
 
-    def generate_cstyle_cast_expr(self, target_type, expr):
+    def generate_cstyle_cast_expr(self, target_type, expr, expr_type):
         return "(" + target_type + ")(" + self.generate_expr(expr) + ")"
 
     def generate_unary_operator(self, op, expr):
