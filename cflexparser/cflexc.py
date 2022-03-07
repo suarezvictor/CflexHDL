@@ -92,6 +92,7 @@ class CFlexPipelineCGenerator(CFlexCGenerator):
 
     def generate_literal(self, value, typ):
         if typ in ["float", "double"]:
+          if value[-1] in ["f", "F"]: value = value[:-1] #remove "f" from literal
           return "(" + typ + ")" + value #do a cast on all defined constants
         return super().generate_literal(value, typ)
 
