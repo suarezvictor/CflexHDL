@@ -61,8 +61,10 @@ class CFlexPipelineCGenerator(CFlexCGenerator):
         return s
 
     def generate_var_decl(self, decltyp, name, has_value, valueexpr, storage):
-        if decltyp.startswith("const "):
-          return "#define " + name + "\t" + self.generate_expr(valueexpr)
+        if storage=="static" and decltyp.startswith("const "): #constants are translated to macros
+          value = self.generate_expr(valueexpr)
+          if not value.startswith("{"): value = "(" + value + ")" #surround, except initializer lists
+          return "#define " + name + "\t" + value
         s = super().generate_var_decl(decltyp, name, has_value, valueexpr, storage)
         if storage: #skip all storage types different from ""
           return "//" + s
@@ -87,6 +89,11 @@ class CFlexPipelineCGenerator(CFlexCGenerator):
             if name=="g": name="y"
             if name=="b": name="z"
         return paren + name
+
+    def generate_literal(self, value, typ):
+        if typ in ["float", "double"]:
+          return "(" + typ + ")" + value #do a cast on all defined constants
+        return super().generate_literal(value, typ)
 
 import sys
 if __name__ == "__main__":

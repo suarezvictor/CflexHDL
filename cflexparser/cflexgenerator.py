@@ -73,7 +73,7 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
             return s + ";"
         return s + " = " + self.generate_expr(valueexpr) + ";"
 
-    def generate_literal(self, value):
+    def generate_literal(self, value, typ):
         return value
 
     def generate_binary_operator(self, lhs, op, rhs):
