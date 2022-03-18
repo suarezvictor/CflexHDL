@@ -14,6 +14,7 @@ from litex.soc.integration.builder import *
 from litex.soc.integration.soc_core import *
 from litex.build.generic_platform import *
 
+DVI = True
 
 class GraphicsGenerator(Module):
     def __init__(self):
@@ -93,44 +94,61 @@ class _CRG_arty(Module):
     def __init__(self, platform, sys_clk_freq, with_rst=True):
         self.rst = Signal()
         self.clock_domains.cd_sys       = ClockDomain()
-        self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
-        self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
-        self.clock_domains.cd_idelay    = ClockDomain()
-        #self.clock_domains.cd_vga       = ClockDomain(reset_less=True)
-        self.clock_domains.cd_vga       = ClockDomain(reset_less=False) #TODO: chech why True brings errors
 
         self.submodules.pll = pll = S7PLL(speedgrade=-1)
         rst    = ~platform.request("cpu_reset") if with_rst else 0
         self.comb += pll.reset.eq(rst | self.rst)
         pll.register_clkin(platform.request("clk100"), 100e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
-        pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
-        pll.create_clkout(self.cd_idelay,    200e6)
-        pll.create_clkout(self.cd_vga, 25e6, margin=1e-3)
+
+        video_clock = 25e6 #"800x600@75Hz" =>  49.5e6, "640x480@60Hz" => 25.175e6 "800x600@60Hz"  => 40e6, 1280x720@60Hz(RB) => 61.9e6 1024 46.42e6
+        if DVI:
+            self.clock_domains.cd_hdmi   = ClockDomain()
+            self.clock_domains.cd_hdmi5x = ClockDomain()
+            pll.create_clkout(self.cd_hdmi,     video_clock, margin=1e-3)
+            pll.create_clkout(self.cd_hdmi5x, 5*video_clock, margin=1e-3)
+        else:
+            #self.clock_domains.cd_vga       = ClockDomain(reset_less=True)
+            self.clock_domains.cd_vga       = ClockDomain(reset_less=False) #TODO: chech why True brings errors
+            pll.create_clkout(self.cd_vga, video_clock, margin=1e-3)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
 
 
 def build_arty(args):
 	from litex_boards.platforms import arty as board
-	from litex.soc.cores.video import VideoVGAPHY
 	platform = board.Platform(toolchain="vivado")
 	#platform = board.Platform(toolchain="yosys+nextpnr") #brings errors about usage of DSP48E1 (* operator) and of ODDR
-
-	platform.add_extension([("vga", 0, #PMOD VGA on pmod B & C
-		Subsignal("hsync", Pins("U14")), #pmodc.4
-		Subsignal("vsync", Pins("V14")), #pmodc.5
-		Subsignal("r", Pins("E15 E16 D15 C15")), #pmodb.0-3
-		Subsignal("g", Pins("U12 V12 V10 V11")), #pmodc.0-3
-		Subsignal("b", Pins("J17 J18 K15 J15")), #pmodb.4-7
-		IOStandard("LVCMOS33"))])
-
 	sys_clk_freq = int(100e6)
 	soc = SoCCore(platform, sys_clk_freq, **soc_core_argdict(args))
 	soc.submodules.crg = _CRG_arty(platform, sys_clk_freq, False)
-	soc.submodules.videophy = VideoVGAPHY(platform.request("vga"), clock_domain="vga")
-	add_video_custom_generator(soc, phy=soc.videophy, timings="640x480@60Hz", clock_domain="vga")
-	return soc
+
+	if DVI:
+		from litex.soc.cores.video import VideoS7HDMIPHY
+		#E15 E16 D15 C15 J17 J18 K15 J15 #pmodb
+		#U12 V12 V10 V11 U14 V14 T13 U13 #pmodc
+		platform.add_extension([("hdmi_out", 0, #DVI pmod breakout on pmod C
+			Subsignal("data0_p", Pins("pmodc:0"), IOStandard("TMDS_33")),
+			Subsignal("data0_n", Pins("pmodc:1"), IOStandard("TMDS_33")),
+			Subsignal("data1_p", Pins("pmodc:2"), IOStandard("TMDS_33")),
+			Subsignal("data1_n", Pins("pmodc:3"), IOStandard("TMDS_33")),
+			Subsignal("data2_p", Pins("pmodc:4"), IOStandard("TMDS_33")),
+			Subsignal("data2_n", Pins("pmodc:5"), IOStandard("TMDS_33")),
+			Subsignal("clk_p",   Pins("pmodc:6"), IOStandard("TMDS_33")),
+			Subsignal("clk_n",   Pins("pmodc:7"), IOStandard("TMDS_33")))])
+		soc.submodules.videophy = VideoS7HDMIPHY(platform.request("hdmi_out"), clock_domain="hdmi")
+		add_video_custom_generator(soc, phy=soc.videophy, timings="640x480@60Hz", clock_domain="hdmi")
+	else:
+		from litex.soc.cores.video import VideoVGAPHY
+		platform.add_extension([("vga", 0, #PMOD VGA on pmod B & C
+			Subsignal("hsync", Pins("U14")), #pmodc.4
+			Subsignal("vsync", Pins("V14")), #pmodc.5
+			Subsignal("r", Pins("E15 E16 D15 C15")), #pmodb.0-3
+			Subsignal("g", Pins("U12 V12 V10 V11")), #pmodc.0-3
+			Subsignal("b", Pins("J17 J18 K15 J15")), #pmodb.4-7
+			IOStandard("LVCMOS33"))])
+		soc.submodules.videophy = VideoVGAPHY(platform.request("vga"), clock_domain="vga")
+		add_video_custom_generator(soc, phy=soc.videophy, timings="640x480@60Hz", clock_domain="vga")
+	return soc #TODO: review code on pipelinec-graphics repo
 
 
 if __name__ == "__main__":
