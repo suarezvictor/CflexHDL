@@ -27,6 +27,10 @@ Synth options: <br>
 `$ make load` synths and loads the bitstream on the Arty board with a VGA PMOD on JB-JC. You should be able to see your PC and FPGA both running at 60 FPS*, side to side (the blurring is proof that the image was moving when taking the picture):<br>
 
 ![image](doc/laptop%2BFPGA%203d%20demo.jpeg)
+
+See it in action!
+https://youtu.be/TqV9wUDEG2o
+
 <br><br>
 For the DE0-Nano, use `$ make BOARD=de0nano bitstream load`, the board outputs DVI signals at LVDS levels (use a simple capacitor coupling)
 <br><br>
