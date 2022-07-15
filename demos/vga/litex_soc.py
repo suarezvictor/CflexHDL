@@ -16,6 +16,42 @@ from litex.build.generic_platform import *
 
 DVI = False
 
+class VideoGenericPHY_SDR(Module):
+    def __init__(self, pads, clock_domain="sys"):
+        self.sink = sink = stream.Endpoint(video_data_layout)
+
+        # # #
+
+        # Always ack Sink, no backpressure.
+        self.comb += sink.ready.eq(1)
+
+        # Drive Clk.
+        if hasattr(pads, "clk"):
+            self.comb += pads.clk.eq(ClockSignal(clock_domain))
+
+        # Drive Controls.
+        if hasattr(pads, "de"):
+            self.comb += pads.de.eq(sink.de)
+
+        if hasattr(pads, "hsync_n"):
+            self.comb += pads.hsync.eq(~sink.hsync)
+        else:
+            self.comb += pads.hsync.eq(sink.hsync)
+
+        if hasattr(pads, "vsync_n"):
+            self.comb += pads.vsync.eq(~sink.vsync)
+        else:
+            self.comb += pads.vsync.eq(sink.vsync)
+
+        # Drive Datas.
+        cbits  = len(pads.r)
+        cshift = (8 - cbits)
+        for i in range(cbits):
+            self.comb += pads.r[i].eq(sink.r[cshift + i] & sink.de)
+            self.comb += pads.g[i].eq(sink.g[cshift + i] & sink.de)
+            self.comb += pads.b[i].eq(sink.b[cshift + i] & sink.de)
+
+
 class GraphicsGenerator(Module):
     def __init__(self):
         self.enable   = Signal(reset=1)
@@ -114,10 +150,13 @@ class _CRG_arty(Module):
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
 
 
-def build_arty(args):
+def build_arty(args, toolchain):
 	from litex_boards.platforms import arty as board
-	platform = board.Platform(toolchain="vivado")
-	#platform = board.Platform(toolchain="yosys+nextpnr") #brings errors about usage of DSP48E1 (* operator) and of ODDR
+	if toolchain is None:
+		platform = board.Platform() #default
+	else:
+		platform = board.Platform(toolchain=toolchain) #"yosys+nextpnr" brings errors about usage of DSP48E1 (* operator) and of ODDR
+      
 	sys_clk_freq = int(100e6)
 	soc = SoCCore(platform, sys_clk_freq, **soc_core_argdict(args))
 	soc.submodules.crg = _CRG_arty(platform, sys_clk_freq, False)
@@ -144,7 +183,7 @@ def build_arty(args):
 			Subsignal("g", Pins("U12 V12 V10 V11")), #pmodc.0-3
 			Subsignal("b", Pins("J17 J18 K15 J15")), #pmodb.4-7
 			IOStandard("LVCMOS33"))])
-		soc.submodules.videophy = VideoVGAPHY(platform.request("vga"), clock_domain="vga")
+		soc.submodules.videophy = VideoGenericPHY_SDR(platform.request("vga"), clock_domain="vga")
 		add_video_custom_generator(soc, phy=soc.videophy, timings="640x480@60Hz", clock_domain="vga")
 	return soc #TODO: review code on pipelinec-graphics repo
 
@@ -153,6 +192,10 @@ if __name__ == "__main__":
 	import sys
 	boardname = sys.argv[1]
 	sys.argv = sys.argv[1:] #remove first argument
+	toolchain = None
+	if len(sys.argv) > 2:
+		toolchain=sys.argv[2]
+		sys.argv = sys.argv[:2]
 
 	import argparse
 	parser = argparse.ArgumentParser()
@@ -160,7 +203,7 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 
 	if boardname == "de0nano": soc = build_de0nano(args)
-	if boardname == "arty": soc = build_arty(args)
+	if boardname == "arty": soc = build_arty(args, toolchain)
 
 	soc.platform.add_source("build/top_instance.v") #generated verilog for graphics
 

@@ -50,7 +50,7 @@ $(BUILD)/terasic_de0nano/gateware/terasic_de0nano.rbf: $(BUILD)/top_instance.v l
 	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
 
 $(BUILD)/digilent_arty/gateware/digilent_arty.bit: $(BUILD)/top_instance.v litex_soc.py
-	python3 litex_soc.py $(BOARD) --cpu-type=None
+	python3 litex_soc.py $(BOARD) --cpu-type=None $(XILINXTOOLCHAIN)
 	@echo openFPGALoader -b $(BOARD) $@ > $(BUILD)/load.sh
 
 load: bitstream
