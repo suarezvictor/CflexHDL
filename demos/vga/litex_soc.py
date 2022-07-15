@@ -14,7 +14,7 @@ from litex.soc.integration.builder import *
 from litex.soc.integration.soc_core import *
 from litex.build.generic_platform import *
 
-DVI = True
+DVI = False
 
 class GraphicsGenerator(Module):
     def __init__(self):
@@ -124,9 +124,7 @@ def build_arty(args):
 
 	if DVI:
 		from litex.soc.cores.video import VideoS7HDMIPHY
-		#E15 E16 D15 C15 J17 J18 K15 J15 #pmodb
-		#U12 V12 V10 V11 U14 V14 T13 U13 #pmodc
-		platform.add_extension([("hdmi_out", 0, #DVI pmod breakout on pmod C
+		platform.add_extension([("hdmi_out", 0, #DVI pmod breakout on pmod C (seems not working in others than C)
 			Subsignal("data0_p", Pins("pmodc:0"), IOStandard("TMDS_33")),
 			Subsignal("data0_n", Pins("pmodc:1"), IOStandard("TMDS_33")),
 			Subsignal("data1_p", Pins("pmodc:2"), IOStandard("TMDS_33")),

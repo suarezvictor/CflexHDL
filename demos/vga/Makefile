@@ -25,13 +25,19 @@ $(BUILD)/compiled: vga_flyover3d.cc simulator_main.cpp $(BUILD)/compiled_simulat
 
 verilog: $(BUILD)/top_instance.v
 
-$(BUILD)/top_instance.v: vga_flyover3d.cc ../../src/vga.cc $(PARSER)
-	mkdir -p $(BUILD)
+$(BUILD)/top_instance.ice: vga_flyover3d.cc ../../src/vga.cc $(BUILD)/div16.ice $(PARSER)
 	cpp $(INCLUDE) -E -include vga_flyover3d.cc ../../src/vga.cc -o $(BUILD)/top_instance.cpp
-	cp includes.ice $(BUILD)/top_instance.ice #FIXME: forced include
+	cat $(BUILD)/div16.ice > $(BUILD)/top_instance.ice #FIXME: forced include
 	$(GENERATOR) $(BUILD)/top_instance.cpp $(CFLAGS)>> $(BUILD)/top_instance.ice
 	cat top_glue.ice >> $(BUILD)/top_instance.ice
+	
+$(BUILD)/top_instance.v: $(BUILD)/top_instance.ice 
 	silice -f ../../external/silice/bare.v $(BUILD)/top_instance.ice -o $(BUILD)/top_instance.v --export vga_demo
+
+$(BUILD)/div16.ice: div16.cc
+	mkdir -p $(BUILD)
+	cpp $(INCLUDE) -E div16.cc > $(BUILD)/div16.cc
+	$(GENERATOR) $(BUILD)/div16.cc $(INCLUDE)> $(BUILD)/div16.ice
 
 bitstream: $(BOARD)
 
