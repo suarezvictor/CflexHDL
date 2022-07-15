@@ -37,7 +37,7 @@ inline void render_pixel()
     return;
 
   pixels[top->out_pix_y][top->out_pix_x] =
-    ((top->out_video_b) | (top->out_video_g << 8) | (top->out_video_r << 16)) << 2;  //original color: 6-bit
+    ((top->out_video_b) | (top->out_video_g << 8) | (top->out_video_r << 16));
 }
 
 inline bool simulation_display()

@@ -31,9 +31,9 @@ class GraphicsGenerator(Module):
             i_in_pix_y = vtg_sink.vcount[0:10],
             i_in_pix_active = vtg_sink.de,
             i_in_pix_vblank = vtg_sink.vsync,
-            o_out_pix_r = source.r[2:8], #original color 6-bit
-            o_out_pix_g = source.g[2:8],
-            o_out_pix_b = source.b[2:8],
+            o_out_pix_r = source.r,
+            o_out_pix_g = source.g,
+            o_out_pix_b = source.b,
             o_out_done = self.done,
             i_reset = ResetSignal("sys"),
             o_out_clock = self.out_clock,

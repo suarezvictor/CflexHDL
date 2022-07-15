@@ -70,21 +70,15 @@ MODULE frame_display(
     struct { uint_div_width _0_6 :6; } cur_inv_y_bitsB; //maybe A and B are not both needed
   };
 
-  //uint8 u      = 0;
-  //uint8 v      = 0;
-  union { uint8 u; struct { uint16 :4; uint16 _4_1 :1; uint16 _5_1 :1; } u_bits; }; //FIXME: avoid duplication
-  union { uint8 v; struct { uint16 :4; uint16 _4_1 :1; uint16 _5_1 :1; } v_bits; };
+  uint8 u      = 0;
+  uint8 v      = 0;
 
   uint15 maxv  = 22000;
 
   uint16 pos_u = 0;
   uint16 pos_v = 0;
 
-  //uint7 lum    = 0;
-  union {
-    uint7 lum;
-    struct { uint7 :1; uint7 _1_6 :6; } lum_bits;
-  };
+  uint8 lum    = 0;
   uint1 floor  = 0;
   uint9 offs_y = 0;
 
@@ -141,27 +135,27 @@ MODULE frame_display(
           u = (pos_u + ((pix_x - 320) * cur_inv_y)) >> 8; //u = pos_u + ((pix_x - 320)>>1); //this to test without multipliers
           v = pos_v+ cur_inv_y_bitsB._0_6; //cur_inv_y[0,6]
 
-          if (u_bits._5_1 ^ v_bits._5_1) { //u[5,1] ^ v[5,1]
-            if (u_bits._4_1 ^ v_bits._4_1) { //u[4,1] ^ v[4,1]
-              pix_r = lum;
-              pix_g = lum;
-              pix_b = lum;
+          if ((u ^ v) & (1<<5)) { //u[5,1] ^ v[5,1]
+            if ((u ^ v) & (1<<4)) { //u[4,1] ^ v[4,1]
+              pix_r = lum << 2;
+              pix_g = lum << 2;
+              pix_b = lum << 2;
             } else {
-              pix_r = lum_bits._1_6; //lum[1,6]
-              pix_g = lum_bits._1_6; //lum[1,6]
-              pix_b = lum_bits._1_6; //lum[1,6]
+              pix_r = lum << 1; //lum[1,6]
+              pix_g = lum << 1 ; //lum[1,6]
+              pix_b = lum << 1; //lum[1,6]
             }
           } else {
-            if (u_bits._4_1 ^ v_bits._4_1) { //u[4,1] ^ v[4,1]
+            if ((u ^ v) & (1<<4)) { //u[4,1] ^ v[4,1]
               if (floor)
-                pix_r = lum; //pix_g = lum;
+                pix_r = lum << 2; //pix_g = lum;
               else
-                pix_b = lum;
+                pix_b = lum << 2;
             } else {
               if (floor)
-                pix_g = lum_bits._1_6; //lum[1,6]
+                pix_g = lum << 1; //lum[1,6]
               else
-                pix_b = lum_bits._1_6; //lum[1,6]
+                pix_b = lum << 1; //lum[1,6]
             }
           }
         }
