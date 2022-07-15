@@ -14,7 +14,7 @@ from litex.soc.integration.builder import *
 from litex.soc.integration.soc_core import *
 from litex.build.generic_platform import *
 
-DVI = True
+DVI = False
 
 class GraphicsGenerator(Module):
     def __init__(self):
@@ -30,7 +30,7 @@ class GraphicsGenerator(Module):
             i_in_pix_x = vtg_sink.hcount[0:10],
             i_in_pix_y = vtg_sink.vcount[0:10],
             i_in_pix_active = vtg_sink.de,
-            i_in_pix_vblank = ~vtg_sink.vsync, #FIXME: hack to fix bugs about "de" and "vsync" signals
+            i_in_pix_vblank = vtg_sink.vsync,
             o_out_pix_r = source.r[2:8], #original color 6-bit
             o_out_pix_g = source.g[2:8],
             o_out_pix_b = source.b[2:8],
@@ -124,9 +124,7 @@ def build_arty(args):
 
 	if DVI:
 		from litex.soc.cores.video import VideoS7HDMIPHY
-		#E15 E16 D15 C15 J17 J18 K15 J15 #pmodb
-		#U12 V12 V10 V11 U14 V14 T13 U13 #pmodc
-		platform.add_extension([("hdmi_out", 0, #DVI pmod breakout on pmod C
+		platform.add_extension([("hdmi_out", 0, #DVI pmod breakout on pmod C (seems not working in others than C)
 			Subsignal("data0_p", Pins("pmodc:0"), IOStandard("TMDS_33")),
 			Subsignal("data0_n", Pins("pmodc:1"), IOStandard("TMDS_33")),
 			Subsignal("data1_p", Pins("pmodc:2"), IOStandard("TMDS_33")),

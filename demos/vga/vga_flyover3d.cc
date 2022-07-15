@@ -51,7 +51,15 @@ MODULE frame_display(
   uint_color_depth &pix_g,
   uint_color_depth &pix_b
 ) {
-
+#if 0
+  //quick pattern test
+  while (always())
+  {
+    pix_r = pix_x;
+    pix_g = pix_y;
+    pix_b = pix_x+pix_y;
+  }
+#else
   //uint$div_width$ cur_inv_y = 0;
   uint_div_width inv_y = 0;
 
@@ -99,7 +107,8 @@ MODULE frame_display(
   // ---------- show time!
   while (always()) { // while(1)
 	  // display frame
-	  while (pix_vblank == 0) {
+	  //while (pix_vblank == 0) {
+	  while (always() && pix_vblank == 0) {
 
       pix_r = 0; pix_g = 0; pix_b = 0;
 
@@ -157,18 +166,18 @@ MODULE frame_display(
           }
         }
       }
-
-      wait_clk();
     }
     // prepare next
     pos_u = pos_u + 1024;
     pos_v = pos_v + 1;
 
     // wait for sync
+    //wait(pix_vblank == 0); //alternate syntax
     while (pix_vblank == 1)
-        wait_clk(); //{}
+        wait_clk();
 
   }
+#endif  
 }
 
 // -------------------------

@@ -43,5 +43,6 @@ typedef uint25 uint25_t;
 
 #endif
 
+#define wait(cond) while(always() && (cond)==0)
 
 #endif //__SILICE_COMPAT_H__

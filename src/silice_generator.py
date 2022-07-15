@@ -49,13 +49,17 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
 
     def generate_function_decl(self, rettyp, name, argsexpr, stmtexpr):
         if name == "__silice_main": name = "main" #avoid name clash with C++
-        s = "algorithm " + name
-        s += "(" + self.generate_expr(argsexpr, ",") + "\n)"
-        print("...PROCESSING", s, file=sys.stderr)
+        s = "(" + self.generate_expr(argsexpr, ",") + "\n)"
+        print("...PROCESSING", name, s, file=sys.stderr)
 
         if stmtexpr is not None:
-            s += " <autorun>" + self.generate_expr(stmtexpr)
-        return s + "\n"
+            if name[0] != '_':
+              s += " <autorun>"
+            else:
+              name = name[1:]
+            s += self.generate_expr(stmtexpr)
+
+        return "algorithm " + name + s + "\n"
 
     def generate_param_decl(self, decltyp, name):
         t = self.indent()
@@ -78,7 +82,8 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
 
     #FIXME: move to generic class
     def generate_while(self, cond, expr):
-        return "\n" + self.ind + "while(" + cond + ")" + self.adjust_noncompund_statement(self.generate_expr(expr))
+        stmt = "while(" + cond + ")" #if cond != "1" else "always"
+        return "\n" + self.ind + stmt + self.adjust_noncompund_statement(self.generate_expr(expr))
 
     def generate_bindarg(self, a, b, isinput):
         return a + ("\t<:\t" if isinput else "\t:>\t") + b
@@ -106,7 +111,8 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         return s + self.adjust_noncompund_statement(else_stmt)
 
     def generate_null_stmt(self):
-        return ""#"\n++:" #insert clock statement FIXME: check yield() statement/macro usage
+        #return ""
+        return "\n++:" #insert clock statement FIXME: check yield() statement/macro usage
 
     def generate_comment(self, kind, comment):
         #return "#"+kind+"#"+comment
