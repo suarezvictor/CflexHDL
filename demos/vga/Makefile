@@ -7,6 +7,7 @@ CFLAGS+=-O3 $(INCLUDE) -DCFLEX_NO_COROUTINES #comment to enable coroutines
 CLANGFLAGS+=-Wno-deprecated -Wno-deprecated-experimental-coroutine -stdlib=libc++ -std=c++20 
 SDL_CFLAGS=$(shell sdl2-config --cflags)
 SDL_LIBS=$(shell sdl2-config --libs)
+XILINXTOOLCHAIN?=vivado #for yosys+nextpnr make sure fasm2frames.py is on PATH (and on front of PATH...)
 
 all: run
 
