@@ -1,4 +1,4 @@
-PYVER=$(shell python --version | sed "s/Python //")
+PYVER=$(shell python3 --version | sed "s/Python //")
 PARSER_C=clangparser$(PYVER).c
 
 all: clangparser.so
