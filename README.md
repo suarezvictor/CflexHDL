@@ -32,6 +32,7 @@ See it in action!
 https://youtu.be/TqV9wUDEG2o
 
 <br><br>
-For the DE0-Nano, use `$ make BOARD=de0nano bitstream load`, the board outputs DVI signals at LVDS levels (use a simple capacitor coupling)
+For using yosys+nextpnr toolchain on the Digilent Arty board, use `XILINXTOOLCHAIN=yosys+nextpnr` in make<br>
+For the DE0-Nano board, use `$ make BOARD=de0nano bitstream load`, the board outputs DVI signals at LVDS levels (use a simple capacitor coupling)
 <br><br>
 *_To limit FPS, set vsync to true when calling fb_init on simulator_main.cpp_
