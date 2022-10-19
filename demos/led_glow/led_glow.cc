@@ -5,7 +5,7 @@
 
 #include "cflexhdl.h"
 
-void led_glow(uint1_t& led)
+MODULE led_glow(uint1_t& led)
 {
   union {
     uint25_t counter; //counter can be accesed as raw or by bitfields

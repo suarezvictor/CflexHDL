@@ -16,7 +16,7 @@ MODULE vga_timing(uint1 &vga_hs, uint1 &vga_vs, uint1 &vga_de, uint10& vga_out_x
 		vga_hs = (vga_x == FRAME_WIDTH-1);
 	  	vga_vs = (vga_y == FRAME_HEIGHT-1);
 
-	  	vga_de = !vga_hs && !vga_hs;
+	  	vga_de = !vga_hs && !vga_vs;
 
 	  	if(vga_x == FRAME_WIDTH)
 	  	{

@@ -11,7 +11,7 @@
 uint1_t led_state;
 long on_count = 0;
 long clk_count = 0;
-
+#ifdef CFLEX_NO_COROUTINES
 inline void wait_clk()
 {
     if(++clk_count >= ITERATIONS)
@@ -19,6 +19,7 @@ inline void wait_clk()
     if(led_state)
         ++on_count;
 }
+#endif
 
 #define clk() ({wait_clk(); true;})
 #include "led_glow.cc" //algorithm implementation

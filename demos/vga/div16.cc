@@ -79,8 +79,6 @@ static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
   uint16 R = 0;
   uint16 R1;
   ret = 0;
-//while(1)
-{
   DIV_ITERATION(15)
   DIV_ITERATION(14)
   DIV_ITERATION(13)
@@ -100,7 +98,4 @@ static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
 }
 
 #endif
-
-}
-
 

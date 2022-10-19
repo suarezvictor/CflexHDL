@@ -43,6 +43,8 @@ typedef uint25 uint25_t;
 
 #endif
 
-#define wait(cond) while(always() && (cond)==0)
+//#define wait_cond(cond) while(always() && (cond)==0)
+
+#define bitslice(B, E, n) (((n) >> (E)) & ((1 << ((B)-(E)+1))-1))
 
 #endif //__SILICE_COMPAT_H__

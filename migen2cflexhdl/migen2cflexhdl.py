@@ -1,0 +1,437 @@
+"""
+Copyright (C) 2011-2020 M-Labs Limited.
+Copyright (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+Other authors retain ownership of their contributions. If a submission can
+reasonably be considered independently copyrightable, it's yours and we
+encourage you to claim it with appropriate copyright notices. This submission
+then falls under the "otherwise noted" category. All submissions are strongly
+encouraged to use the two-clause BSD license reproduced above.
+"""
+#original version from https://github.com/m-labs/migen/blob/master/migen/fhdl/verilog.py
+
+from functools import partial
+from operator import itemgetter
+import collections.abc
+import logging
+
+from migen.fhdl.structure import *
+from migen.fhdl.structure import _Operator, _Slice, _Assign, _Fragment, _Part
+from migen.fhdl.tools import *
+from migen.fhdl.namer import build_namespace
+from migen.fhdl.conv_output import ConvOutput
+
+
+_reserved_keywords = {
+    "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
+    "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
+    "defparam", "design", "disable", "edge", "else", "end", "endcase",
+    "endconfig", "endfunction", "endgenerate", "endmodule", "endprimitive",
+    "endspecify", "endtable", "endtask", "event", "for", "force", "forever",
+    "fork", "function", "generate", "genvar", "highz0", "highz1", "if",
+    "ifnone", "incdir", "include", "initial", "inout", "input",
+    "instance", "integer", "join", "large", "liblist", "library", "localparam",
+    "macromodule", "medium", "module", "nand", "negedge", "nmos", "nor",
+    "noshowcancelled", "not", "notif0", "notif1", "or", "output", "parameter",
+    "pmos", "posedge", "primitive", "pull0", "pull1" "pulldown",
+    "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "remos", "real",
+    "realtime", "reg", "release", "repeat", "rnmos", "rpmos", "rtran",
+    "rtranif0", "rtranif1", "scalared", "showcancelled", "signed", "small",
+    "specify", "specparam", "strong0", "strong1", "supply0", "supply1",
+    "table", "task", "time", "tran", "tranif0", "tranif1", "tri", "tri0",
+    "tri1", "triand", "trior", "trireg", "unsigned", "use", "vectored", "wait",
+    "wand", "weak0", "weak1", "while", "wire", "wor","xnor", "xor", "do"
+}
+
+
+def _printsig(ns, s, modifier=""):
+    if s.signed:
+        n = "int"
+    else:
+        n = "uint"
+    n += str(len(s)) + modifier + " "
+    n += ns.get_name(s)
+    return n
+
+
+def _printconstant(node):
+    if node.signed:
+        val = node.value if node.value >= 0 else 2**node.nbits + node.value
+        return ("+" if node.value > 0 else "-") + str(val), True
+    else:
+        return str(node.value), False
+
+def signed_expr(s, l):
+    return "/*signed*/" + s
+
+def _printexpr(ns, node):
+    if isinstance(node, Constant):
+        return _printconstant(node)
+    elif isinstance(node, Signal):
+        return ns.get_name(node), node.signed
+    elif isinstance(node, _Operator):
+        arity = len(node.operands)
+        r1, s1 = _printexpr(ns, node.operands[0])
+        l1 = len(node.operands[0])
+        if arity == 1:
+            if node.op == "-":
+                if s1:
+                    r = node.op + r1
+                else:
+                    r = "-" + signed_expr(r1, l1) #"-$signed({1'd0, " + r1 + "})"
+                s = True
+            elif node.op == "~" and l1==1:
+                r = "!" + r1
+                s = s1
+            else:
+                r = node.op + r1
+                s = s1
+        elif arity == 2:
+            r2, s2 = _printexpr(ns, node.operands[1])
+            l2 = len(node.operands[1])
+            __op = node.op
+            if node.op not in ["<<<", ">>>"]:
+                if s2 and not s1:
+                    r1 = signed_expr(r1, l1) #"$signed({1'd0, " + r1 + "})"
+                if s1 and not s2:
+                    r2 = signed_expr(r2, l2) #"$signed({1'd0, " + r2 + "})"
+            else:
+                __op = node.op[1:]
+            r = r1 + " " + __op + " " + r2
+            s = s1 or s2
+        elif arity == 3:
+            assert node.op == "m"
+            r2, s2 = _printexpr(ns, node.operands[1])
+            l2 = len(node.operands[1])
+            r3, s3 = _printexpr(ns, node.operands[2])
+            l3 = len(node.operands[2])
+            if s2 and not s3:
+                r3 = signed_expr(r3, l3) #"$signed({1'd0, " + r3 + "})"
+            if s3 and not s2:
+                r2 = signed_expr(r2, l3) #"$signed({1'd0, " + r2 + "})"
+            r = r1 + " ? " + r2 + " : " + r3
+            s = s2 or s3
+        else:
+            raise TypeError
+        return "(" + r + ")", s
+    elif isinstance(node, _Slice):
+        # Verilog does not like us slicing non-array signals...
+        if isinstance(node.value, Signal) \
+          and len(node.value) == 1 \
+          and node.start == 0 and node.stop == 1:
+              return _printexpr(ns, node.value)
+
+        r, s = _printexpr(ns, node.value)
+        if node.start + 1 == node.stop:
+            sr = "bitslice(" + str(node.start) + ", " + str(node.start) + ", " + r + ")"
+        else:
+            sr = "bitslice(" + str(node.stop-1) + ", " + str(node.start) + ", " + r + ")"
+        return sr, s
+    elif isinstance(node, _Part):
+        sr = "slice(" + _printexpr(ns, node.offset)[0] + "+:" + str(node.width) + ")"
+        r, s = _printexpr(ns, node.value)
+        return r + sr, s
+    elif isinstance(node, Cat):
+        l = [_printexpr(ns, v)[0] for v in reversed(node.l)]
+        return "cat(" + ", ".join(l) + ")", False
+    elif isinstance(node, Replicate):
+        return "rep(" + str(node.n) + ", " + _printexpr(ns, node.v)[0] + ")", False
+    else:
+        raise TypeError("Expression of unrecognized type: '{}'".format(type(node).__name__))
+
+
+(_AT_BLOCKING, _AT_NONBLOCKING, _AT_SIGNAL) = range(3)
+
+
+def _printnode(ns, at, level, node):
+    if isinstance(node, _Assign):
+        if at == _AT_BLOCKING:
+            assignment = "/*blk*/ = "
+        elif at == _AT_NONBLOCKING:
+            assignment = " = "
+        elif is_variable(node.l):
+            assignment = "/*var*/ = "
+        else:
+            assignment = "/*set*/ = "
+        return "\t"*level + _printexpr(ns, node.l)[0] + assignment + _printexpr(ns, node.r)[0] + ";\n"
+    elif isinstance(node, collections.abc.Iterable):
+        return "".join(list(map(partial(_printnode, ns, at, level), node)))
+    elif isinstance(node, If):
+        r = "\t"*level + "if (" + _printexpr(ns, node.cond)[0] + ") {\n"
+        r += _printnode(ns, at, level + 1, node.t)
+        if node.f:
+            r += "\t"*level + "} else {\n"
+            r += _printnode(ns, at, level + 1, node.f)
+        r += "\t"*level + "}\n"
+        return r
+    elif isinstance(node, Case):
+        if node.cases:
+            r = "\t"*level + "switch(" + _printexpr(ns, node.test)[0] + ") {\n"
+            css = [(k, v) for k, v in node.cases.items() if isinstance(k, Constant)]
+            css = sorted(css, key=lambda x: x[0].value)
+            for choice, statements in css:
+                r += "\tcase " + _printexpr(ns, choice)[0] + ": {\n"
+                r += _printnode(ns, at, level + 2, statements)
+                r += "\t"*(level + 1) + "} break;\n"
+            if "default" in node.cases:
+                r += "\t"*(level + 1) + "default: {\n"
+                r += _printnode(ns, at, level + 2, node.cases["default"])
+                r += "\t"*(level + 1) + "} break;\n"
+            r += "\t"*level + "}\n"
+            return r
+        else:
+            return ""
+    elif isinstance(node, Display):
+        s = "\"" + node.s + "\""
+        for arg in node.args:
+            s += ", "
+            if isinstance(arg, Signal):
+                s += ns.get_name(arg)
+            else:
+                s += str(arg)
+        return "\t"*level + "printf(" + s + ");\n"
+    elif isinstance(node, Finish):
+        return "\t"*level + "/*$finish;*/\n"
+    else:
+        raise TypeError("Node of unrecognized type: "+str(type(node)))
+
+
+def _list_comb_wires_regs(f):
+    w, r = set(), set()
+    groups = group_by_targets(f.comb)
+    for g in groups:
+        if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
+            w |= g[0]
+        else:
+            r |= g[0]
+    return w, r
+
+
+def _printattr(attr, attr_translate):
+    r = ""
+    firsta = True
+    for attr in sorted(attr,
+                       key=lambda x: ("", x) if isinstance(x, str) else x):
+        if isinstance(attr, tuple):
+            # platform-dependent attribute
+            attr_name, attr_value = attr
+        else:
+            # translated attribute
+            at = attr_translate[attr]
+            if at is None:
+                continue
+            attr_name, attr_value = at
+        if not firsta:
+            r += ", "
+        firsta = False
+        const_expr = "\"" + attr_value + "\"" if not isinstance(attr_value, int) else str(attr_value)
+        r += attr_name + " = " + const_expr
+    if r:
+        r = "/* " + r + " */"
+    return r
+
+def is_reset_signal(sn):
+    return sn[-4:]=="_rst"
+
+def is_clock_signal(sn):
+    return sn[-4:]=="_clk"
+
+def _printheader(f, ios, name, ns, attr_translate):
+    sigs = list_signals(f) | list_special_ios(f, True, True, True)
+    special_outs = list_special_ios(f, False, True, True)
+    inouts = list_special_ios(f, False, False, True)
+    targets = list_targets(f) | special_outs
+    wires, comb_regs = _list_comb_wires_regs(f)
+    wires |= special_outs
+    r = "#include \"cflexhdl.h\"\n\n"
+    r += "MODULE " + name + "(\n"
+    firstp = True
+    ign_signals = ""
+    for sig in sorted(ios, key=lambda x: x.duid):
+        sn = _printsig(ns, sig, "");
+        if is_reset_signal(sn) or is_clock_signal(sn):
+            ign_signals += "\t" + sn + " = 0;\n"
+            continue
+        elif not firstp:
+            r += ",\n"
+        firstp = False
+        attr = _printattr(sig.attr, attr_translate)
+        if attr:
+            r += "\t" + attr
+        if sig in inouts:
+            r += "\t " + _printsig(ns, sig, "&")
+        elif sig in targets:
+            if sig in wires:
+                r += "\t" + _printsig(ns, sig, "&")
+            else:
+                r += "\t" + _printsig(ns, sig, "&")
+        else:
+            r += "\tconst " + _printsig(ns, sig, "&")
+    r += "\n) {\n"
+    r += ign_signals
+    for sig in sorted(sigs - ios, key=lambda x: x.duid):
+        attr = _printattr(sig.attr, attr_translate)
+        if attr:
+            r += "/*attr*/" + attr + " "
+        if sig in wires:
+            r += "/*wire*/ " + _printsig(ns, sig) + ";\n"
+        else:
+            if sig not in comb_regs:
+                r +=  "/*sig*/ " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
+            else:
+                r += "/*comb_reg*/ " +  _printsig(ns, sig) + ";\n"
+    r += "\n"
+    return r
+
+
+def _printcomb(f, ns, display_run):
+    r = ""
+    if f.comb:
+        # Add a dummy event (using a dummy signal 'dummy_s') to get the simulator
+        # to run the combinatorial process once at the beginning.
+        syn_off = "// synthesis translate_off\n"
+        syn_on = "// synthesis translate_on\n"
+        dummy_s = Signal(name_override="dummy_s")
+        #r += syn_off
+        #r +=  _printsig(ns, dummy_s) + ";\n"
+        #r += ns.get_name(dummy_s) + " = 0;\n"
+        #r += syn_on
+        #r += "\n"
+
+        groups = group_by_targets(f.comb)
+
+        for n, g in enumerate(groups):
+            #r += "#warning group: n=" + str(n) + ", g=" + str(g[0]) + "\n"        
+            if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
+                r += "\t/*assign*/ " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
+            else:
+                dummy_d = Signal(name_override="dummy_d")
+                #r += "\n" + syn_off
+                #r +=  _printsig(ns, dummy_d) + ";\n"
+                #r += syn_on
+
+                r += "//always @(*) \n{\n"
+                if display_run:
+                    r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
+                for t in sorted(g[0], key=lambda x: x.duid):
+                    r += "\t" + ns.get_name(t) + " /*comb*/= " + _printexpr(ns, t.reset)[0] + ";\n"
+                r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
+
+                #r += syn_off
+                #r += "\t" + ns.get_name(dummy_d) + " /*comb*/= " + ns.get_name(dummy_s) + ";\n"
+                #r += syn_on
+                r += "}\n"
+    r += "\n"
+    return r
+
+
+def _printsync(f, ns, comb=None):
+    r = ""
+    for k, v in sorted(f.sync.items(), key=itemgetter(0)):
+        #r += "//NOTE: execution is suspended/resumed at the always statement\n"
+        #r += "while(always(" + ns.get_name(f.clock_domains[k].clk) + ")) {\n"
+        r += "while(always()) {\n"
+        if comb is not None:
+          r += comb
+          comb = None
+        r += _printnode(ns, _AT_SIGNAL, 1, v)
+        r += "}\n\n"
+    return r
+
+
+def _printspecials(overrides, specials, ns, add_data_file, attr_translate):
+    r = ""
+    for special in sorted(specials, key=lambda x: x.duid):
+        if hasattr(special, "attr"):
+            attr = _printattr(special.attr, attr_translate)
+            if attr:
+                r += attr + " "
+        pr = call_special_classmethod(overrides, special, "emit_verilog", ns, add_data_file)
+        if pr is None:
+            raise NotImplementedError("Special " + str(special) + " failed to implement emit_verilog")
+        r += pr
+    return r
+
+
+class DummyAttrTranslate:
+    def __getitem__(self, k):
+        return (k, "true")
+
+
+def convert(fi, ios=None, name="top",
+  special_overrides=dict(),
+  attr_translate=DummyAttrTranslate(),
+  create_clock_domains=True,
+  display_run=False):
+    r = ConvOutput()
+    f = _Fragment()
+    if not isinstance(fi, _Fragment):
+        fi = fi.get_fragment()
+    f += fi
+    if ios is None:
+        ios = set()
+
+    for cd_name in sorted(list_clock_domains(f)):
+        try:
+            f.clock_domains[cd_name]
+        except KeyError:
+            if create_clock_domains:
+                cd = ClockDomain(cd_name)
+                f.clock_domains.append(cd)
+                ios |= {cd.clk, cd.rst}
+            else:
+                msg = "Available clock domains:\n"
+                for name in sorted(list_clock_domains(f)):
+                    msg += "- "+name+"\n"
+                logging.error(msg)
+                raise KeyError("Unresolved clock domain: \""+cd_name+"\"")
+
+    f = lower_complex_slices(f)
+    insert_resets(f)
+    f = lower_basics(f)
+    f, lowered_specials = lower_specials(special_overrides, f)
+    f = lower_basics(f)
+
+    for io in sorted(ios, key=lambda x: x.duid):
+        if io.name_override is None:
+            io_name = io.backtrace[-1][0]
+            if io_name:
+                io.name_override = io_name
+    ns = build_namespace(list_signals(f) \
+        | list_special_ios(f, True, True, True) \
+        | ios, _reserved_keywords)
+    ns.clock_domains = f.clock_domains
+    r.ns = ns
+
+    src = "// Machine-generated using Migen2CflexHDL - do not edit!\n"
+    src += "// check source license to know the license of this file\n\n"
+    src += _printheader(f, ios, name, ns, attr_translate)
+    _comb = _printcomb(f, ns, display_run=display_run)
+    src += _printsync(f, ns, _comb)
+    src += _printspecials(special_overrides, f.specials - lowered_specials,
+        ns, r.add_data_file, attr_translate)
+    src += "}\n"
+    r.set_main_source(src)
+
+    return r

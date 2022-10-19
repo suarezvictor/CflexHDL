@@ -112,8 +112,8 @@ int main()
 	uint64_t start_time = higres_ticks();
 
 	run();
-
-	printf("FPS %f\n", float(framecount)*higres_ticks_freq()/(higres_ticks()-start_time));
+	float fps = float(framecount)*higres_ticks_freq()/(higres_ticks()-start_time);
+	printf("FPS %.1f, pixel clock %.1f MHz\n", fps, fps*FRAME_WIDTH*FRAME_HEIGHT*1e-6);
 	fb_deinit(&fb);
 	return 0;
 }

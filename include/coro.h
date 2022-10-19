@@ -1,7 +1,7 @@
 #ifndef __CORO_H__
 #define __CORO_H__
 
-#if 1
+#ifdef __clang
 #include <experimental/coroutine>
 using namespace std::experimental;
 #else

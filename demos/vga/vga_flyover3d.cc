@@ -8,6 +8,8 @@
 #include "cflexhdl.h"
 #include "vga_config.h"
 
+//#define NO_MULT
+
 /*
 $include('vga_demo_main.ice')
 
@@ -25,8 +27,37 @@ class div16 : div_any
  uint_div_width& _ret;
 public:
  div16(uint_div_width& ret) : _ret(ret) {}
- void operator()(int16 n, int16 d) { _ret = n/d; }
+ void operator()(int16 n, int16 d)
+ {
+   _ret = n/d;
+   //_div16(a, b, _ret);
+ }
 };
+
+#ifdef NO_MULT
+static MODULE _mul16(const uint16& a, const uint16& b, uint16& ret)
+{
+#define F(x) (a&(1<<x)?(b<<x):0)
+#ifdef F
+  ret = F(0)+F(1)+F(2)+F(3)+F(4)+F(5)+F(6)+F(7)
+    + F(8)+F(9)+F(10)+F(11)+F(12)+F(13)+F(14)+F(15);
+#else
+  ret = a*b;
+#endif
+}
+struct mul_any : silice_module {}; //TODO: automatic import
+class mul16 : mul_any
+{
+ uint16& _ret;
+public:
+ mul16(uint16& ret) : _ret(ret) {}
+ void operator()(uint16 a, uint16 b)
+ {
+   //_ret = a*b;
+   _mul16(a, b, _ret);
+ }
+};
+#endif
 
 // -------------------------
 /*
@@ -87,6 +118,11 @@ MODULE frame_display(
     ret :> inv_y
   );
 */
+  uint16 prod = 0;
+  uint16 cx;
+#ifdef NO_MULT
+  mul16 mul(prod);
+#endif
   div16 div(inv_y);
 
   //NOTE: assignments put after declarations (a Silice requirement)
@@ -131,8 +167,13 @@ MODULE frame_display(
             // divide for next line
             div(maxv, offs_y); //div <- (maxv,offs_y);
           }
-
-          u = (pos_u + ((pix_x - 320) * cur_inv_y)) >> 8; //u = pos_u + ((pix_x - 320)>>1); //this to test without multipliers
+          cx = pix_x - 320;
+#ifdef NO_MULT
+          mul(cur_inv_y, cx);
+#else
+          prod = cur_inv_y * cx;
+#endif
+          u = (pos_u + prod) >> 8; //u = pos_u + ((pix_x - 320)>>1); //this to test without multipliers
           v = pos_v+ cur_inv_y_bitsB._0_6; //cur_inv_y[0,6]
 
           if ((u ^ v) & (1<<5)) { //u[5,1] ^ v[5,1]

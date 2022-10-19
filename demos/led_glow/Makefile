@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 GENERATOR?=../../src/silice_generator.py
 PARSER=../../cflexparser/clangparser.so
 BUILD?=build

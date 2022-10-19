@@ -1,9 +1,14 @@
+VGA_SRC?=vga_flyover3d.cc
+MIGEN_VGA?=pergola_vga.py
 GENERATOR?=../../src/silice_generator.py
 PARSER=../../cflexparser/clangparser.so
+MIGEN2C=../../migen2cflexhdl/migen2cflexhdl.py
 BUILD?=build
 BOARD?=arty
 INCLUDE+=-I../../include -I../../src/ -I`pwd`
-CFLAGS+=-O3 $(INCLUDE) -DCFLEX_NO_COROUTINES #comment to enable coroutines
+CFLAGS+=-O3 $(INCLUDE) -DCFLEX_NO_COROUTINES
+#CFLAGS+=-O3 $(INCLUDE) -fcoroutines
+
 CLANGFLAGS+=-Wno-deprecated -Wno-deprecated-experimental-coroutine -stdlib=libc++ -std=c++20 
 SDL_CFLAGS=$(shell sdl2-config --cflags)
 SDL_LIBS=$(shell sdl2-config --libs)
@@ -16,18 +21,26 @@ run: compile
 
 compile: $(BUILD)/compiled
 
-$(BUILD)/compiled_simulator.cpp: vga_flyover3d.cc
+$(BUILD)/compiled_simulator.cpp: $(VGA_SRC)
 	mkdir -p $(BUILD)
-	cat vga_flyover3d.cc > $(BUILD)/compiled_simulator.cpp
+	cat $(VGA_SRC) > $(BUILD)/compiled_simulator.cpp
 
-$(BUILD)/compiled: vga_flyover3d.cc simulator_main.cpp $(BUILD)/compiled_simulator.cpp
+$(BUILD)/compiled: $(VGA_SRC) simulator_main.cpp $(BUILD)/compiled_simulator.cpp
 	g++ -DCFLEX_SIMULATION $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
-	#clang++ -DCFLEX_SIMULATION $(CLANGFLAGS) $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
+	#clang++ -c -DCFLEX_SIMULATION $(CLANGFLAGS) $(CFLAGS) $(SDL_CFLAGS) simulator_main.cpp -o $(BUILD)/compiled.o
+	#clang++ -c -DCFLEX_SIMULATION $(CLANGFLAGS) $(CFLAGS) $(SDL_CFLAGS) ../../src/sim_fb.c -o $(BUILD)/sim_fb.o
+	
+	#clang++ $(BUILD)/sim_fb.o $(BUILD)/compiled.o -o $(BUILD)/compiled $(SDL_LIBS)
 
 verilog: $(BUILD)/top_instance.v
 
-$(BUILD)/top_instance.ice: vga_flyover3d.cc ../../src/vga.cc $(BUILD)/div16.ice $(PARSER)
-	cpp $(INCLUDE) -E -include vga_flyover3d.cc ../../src/vga.cc -o $(BUILD)/top_instance.cpp
+$(BUILD)/migen_vga.cc: migen/*.py $(MIGEN2C)
+	mkdir -p $(BUILD)
+	PYTHONPATH=../../migen2cflexhdl MIGEN2C_TARGET= python3 migen/$(MIGEN_VGA) > $(BUILD)/migen_vga.cc
+	echo "#include \"vga_config.h\"" >> $(BUILD)/migen_vga.cc
+
+$(BUILD)/top_instance.ice: $(VGA_SRC) ../../src/vga.cc $(BUILD)/div16.ice $(PARSER)
+	cpp $(INCLUDE) -E -include $(VGA_SRC) ../../src/vga.cc -o $(BUILD)/top_instance.cpp
 	cat $(BUILD)/div16.ice > $(BUILD)/top_instance.ice #FIXME: forced include
 	$(GENERATOR) $(BUILD)/top_instance.cpp $(CFLAGS)>> $(BUILD)/top_instance.ice
 	cat top_glue.ice >> $(BUILD)/top_instance.ice
@@ -62,7 +75,7 @@ verilator: $(BUILD)/VM_vga_demo
 
 $(BUILD)/VM_vga_demo: $(BUILD)/top_instance.v simulator_main.cpp $(BUILD)/compiled_simulator.cpp
 	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $(BUILD)/top_instance.v --top-module M_vga_demo --exe simulator_main.cpp ../../src/sim_fb.c -CFLAGS -DCFLEX_VERILATOR -CFLAGS -I`pwd` -CFLAGS -I../../../include -CFLAGS -I../../../src/ -CFLAGS $(shell sdl2-config --cflags) -LDFLAGS $(shell sdl2-config --libs)
-	cd build && make -f VM_vga_demo.mk
+	cd build && make OPT_FAST="-O3" -f VM_vga_demo.mk
 
 $(PARSER):
 	cd ../../cflexparser && make

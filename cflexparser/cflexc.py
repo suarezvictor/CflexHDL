@@ -102,6 +102,8 @@ if __name__ == "__main__":
     cflags = sys.argv[2:]
     parser = CFlexClangParser(sourcefile, cflags)
     parser.comments_enabled = False #comment line to enable comments
-    parser.print_diagnostics()
+    if not parser.print_diagnostics():
+        #exit(1) #FIXME: return 1 to indicate error
+        pass
     generated = parser.generate(CFlexPipelineCGenerator())
     print(generated)
