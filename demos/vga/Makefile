@@ -37,6 +37,7 @@ verilog: $(BUILD)/top_instance.v
 $(BUILD)/migen_vga.cc: migen/*.py $(MIGEN2C)
 	mkdir -p $(BUILD)
 	PYTHONPATH=../../migen2cflexhdl MIGEN2C_TARGET= python3 migen/$(MIGEN_VGA) > $(BUILD)/migen_vga.cc
+	#cp $(BUILD)/migen_vga.cc migen/$(MIGEN_VGA).cc
 	echo "#include \"vga_config.h\"" >> $(BUILD)/migen_vga.cc
 
 $(BUILD)/top_instance.ice: $(VGA_SRC) ../../src/vga.cc $(BUILD)/div16.ice $(PARSER)

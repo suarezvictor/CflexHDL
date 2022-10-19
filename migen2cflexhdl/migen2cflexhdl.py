@@ -167,13 +167,13 @@ def _printexpr(ns, node):
 def _printnode(ns, at, level, node):
     if isinstance(node, _Assign):
         if at == _AT_BLOCKING:
-            assignment = "/*blk*/ = "
+            assignment = " = "
         elif at == _AT_NONBLOCKING:
             assignment = " = "
         elif is_variable(node.l):
-            assignment = "/*var*/ = "
+            assignment = " = "
         else:
-            assignment = "/*set*/ = "
+            assignment = " = "
         return "\t"*level + _printexpr(ns, node.l)[0] + assignment + _printexpr(ns, node.r)[0] + ";\n"
     elif isinstance(node, collections.abc.Iterable):
         return "".join(list(map(partial(_printnode, ns, at, level), node)))
@@ -212,7 +212,7 @@ def _printnode(ns, at, level, node):
                 s += str(arg)
         return "\t"*level + "printf(" + s + ");\n"
     elif isinstance(node, Finish):
-        return "\t"*level + "/*$finish;*/\n"
+        return "\t"*level + "exit(0);\n"
     else:
         raise TypeError("Node of unrecognized type: "+str(type(node)))
 
@@ -293,14 +293,14 @@ def _printheader(f, ios, name, ns, attr_translate):
     for sig in sorted(sigs - ios, key=lambda x: x.duid):
         attr = _printattr(sig.attr, attr_translate)
         if attr:
-            r += "/*attr*/" + attr + " "
+            r +=  attr + " "
         if sig in wires:
-            r += "/*wire*/ " + _printsig(ns, sig) + ";\n"
+            r += _printsig(ns, sig) + ";\n"
         else:
             if sig not in comb_regs:
-                r +=  "/*sig*/ " + _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
+                r += _printsig(ns, sig) + " = " + _printexpr(ns, sig.reset)[0] + ";\n"
             else:
-                r += "/*comb_reg*/ " +  _printsig(ns, sig) + ";\n"
+                r += _printsig(ns, sig) + ";\n"
     r += "\n"
     return r
 
@@ -324,18 +324,18 @@ def _printcomb(f, ns, display_run):
         for n, g in enumerate(groups):
             #r += "#warning group: n=" + str(n) + ", g=" + str(g[0]) + "\n"        
             if len(g[1]) == 1 and isinstance(g[1][0], _Assign):
-                r += "\t/*assign*/ " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
+                r += "\t " + _printnode(ns, _AT_BLOCKING, 0, g[1][0])
             else:
                 dummy_d = Signal(name_override="dummy_d")
                 #r += "\n" + syn_off
                 #r +=  _printsig(ns, dummy_d) + ";\n"
                 #r += syn_on
 
-                r += "//always @(*) \n{\n"
+                #r += "//always @(*) \n{\n"
                 if display_run:
                     r += "\t$display(\"Running comb block #" + str(n) + "\");\n"
                 for t in sorted(g[0], key=lambda x: x.duid):
-                    r += "\t" + ns.get_name(t) + " /*comb*/= " + _printexpr(ns, t.reset)[0] + ";\n"
+                    r += "\t" + ns.get_name(t) + " = " + _printexpr(ns, t.reset)[0] + ";\n"
                 r += _printnode(ns, _AT_NONBLOCKING, 1, g[1])
 
                 #r += syn_off

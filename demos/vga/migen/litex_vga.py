@@ -28,21 +28,6 @@ class ColorbarsModule(Module):
 		colorbars.vtg_sink.vres.eq(480),
      ]
 
-"""
-  colorbars.source.ready,
-  colorbars.source.r,
-  colorbars.source.g,
-  colorbars.source.b,
-  colorbars.vtg_sink.ready,
-  colorbars.vtg_sink.valid,
-  colorbars.vtg_sink.first,
-  colorbars.vtg_sink.de,
-  #colorbars.vtg_sink.hcount,
-  #colorbars.vtg_sink.vcount,
-  colorbars.vtg_sink.hres,
-  colorbars.vtg_sink.vres,
-"""
-
 m = ColorbarsModule()
 
 import os
