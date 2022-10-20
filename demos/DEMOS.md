@@ -23,5 +23,6 @@ FPS 132.4, pixel clock 40.7 MHz (verilator)<br>
 ![image](https://user-images.githubusercontent.com/8551129/196614509-781472c2-bea5-4dcf-8512-76ab8a9d444d.png)<br>
 
 make VGA_SRC=build/migen_vga.cc MIGEN_VGA=litex_vga.py clean all<br>
-FPS 713.5, pixel clock 219.2 MHz (simulation)<br>
-FPS 139.5, pixel clock 42.9 MHz (verilator, needs manual patch)<br>
+FPS 764.4, pixel clock 234.8 MHz (simulation)<br>
+FPS 136.8, pixel clock 42.0 MHz (verilator)<br>
+
