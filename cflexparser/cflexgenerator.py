@@ -135,4 +135,11 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
     def generate_type_ref(self, typname, expr):
         pass
 
+    def generate_switch(self, switchvar, caselist):
+        return "\n" + self.ind + "switch(" + switchvar + ")" + caselist
+
+    def generate_case_label(self, caselabel, casestmt):
+        caselabel = "case " + caselabel if caselabel is not None else "default"
+        return "\n" + self.ind + caselabel + ": " + casestmt + "\n" + self.ind + "break;"
+      
 

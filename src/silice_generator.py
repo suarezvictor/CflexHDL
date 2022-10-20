@@ -118,6 +118,9 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         #return "#"+kind+"#"+comment
         return ""
 
+    def generate_case_label(self, caselabel, casestmt):
+        caselabel = "case " + caselabel if caselabel is not None else "default"
+        return "\n" + self.ind + caselabel + ": " + casestmt #no "break"
 
 from clang.cindex import CursorKind
 

@@ -341,7 +341,7 @@ def _printcomb(f, ns, display_run):
                 #r += syn_off
                 #r += "\t" + ns.get_name(dummy_d) + " /*comb*/= " + ns.get_name(dummy_s) + ";\n"
                 #r += syn_on
-                r += "}\n"
+                #r += "}\n"
     r += "\n"
     return r
 
