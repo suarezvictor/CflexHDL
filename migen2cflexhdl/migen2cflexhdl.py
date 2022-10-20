@@ -61,7 +61,8 @@ _reserved_keywords = {
     "specify", "specparam", "strong0", "strong1", "supply0", "supply1",
     "table", "task", "time", "tran", "tranif0", "tranif1", "tri", "tri0",
     "tri1", "triand", "trior", "trireg", "unsigned", "use", "vectored", "wait",
-    "wand", "weak0", "weak1", "while", "wire", "wor","xnor", "xor", "do"
+    "wand", "weak0", "weak1", "while", "wire", "wor","xnor", "xor", "do",
+    "reset" #this avoids isuess with HDL tools that reserves that name
 }
 
 
@@ -99,7 +100,7 @@ def _printexpr(ns, node):
                 if s1:
                     r = node.op + r1
                 else:
-                    r = "-" + signed_expr(r1, l1) #"-$signed({1'd0, " + r1 + "})"
+                    r = "-" + signed_expr(r1, l1)
                 s = True
             elif node.op == "~" and l1==1:
                 r = "!" + r1
@@ -113,9 +114,9 @@ def _printexpr(ns, node):
             __op = node.op
             if node.op not in ["<<<", ">>>"]:
                 if s2 and not s1:
-                    r1 = signed_expr(r1, l1) #"$signed({1'd0, " + r1 + "})"
+                    r1 = signed_expr(r1, l1)
                 if s1 and not s2:
-                    r2 = signed_expr(r2, l2) #"$signed({1'd0, " + r2 + "})"
+                    r2 = signed_expr(r2, l2)
             else:
                 __op = node.op[1:]
             r = r1 + " " + __op + " " + r2
@@ -127,9 +128,9 @@ def _printexpr(ns, node):
             r3, s3 = _printexpr(ns, node.operands[2])
             l3 = len(node.operands[2])
             if s2 and not s3:
-                r3 = signed_expr(r3, l3) #"$signed({1'd0, " + r3 + "})"
+                r3 = signed_expr(r3, l3)
             if s3 and not s2:
-                r2 = signed_expr(r2, l3) #"$signed({1'd0, " + r2 + "})"
+                r2 = signed_expr(r2, l3)
             r = r1 + " ? " + r2 + " : " + r3
             s = s2 or s3
         else:
