@@ -39,6 +39,7 @@ $(BUILD)/migen_vga.cc: migen/*.py $(MIGEN2C)
 	PYTHONPATH=../../migen2cflexhdl MIGEN2C_TARGET= python3 migen/$(MIGEN_VGA) > $(BUILD)/migen_vga.cc
 	#cp $(BUILD)/migen_vga.cc migen/$(MIGEN_VGA).cc
 	echo "#include \"vga_config.h\"" >> $(BUILD)/migen_vga.cc
+	cp $(BUILD)/migen_vga.cc $(MIGEN_VGA).cc
 
 $(BUILD)/top_instance.ice: $(VGA_SRC) ../../src/vga.cc $(BUILD)/div16.ice $(PARSER)
 	cpp $(INCLUDE) -E -include $(VGA_SRC) ../../src/vga.cc -o $(BUILD)/top_instance.cpp
