@@ -28,4 +28,12 @@ FPS 136.8, pixel clock 42.0 MHz (verilator)<br>
 
 **Pergola's TestImageGenerator**<br>
 ![image](https://user-images.githubusercontent.com/8551129/197364164-a1b41146-107c-4a42-a2b3-8173451213f2.png)<br>
-FPS 553.2, pixel clock 169.9 MHz (RTLIL)
+FPS 580.9, pixel clock 178.5 MHz (simulation)<br>
+FPS 553.2, pixel clock 169.9 MHz (thru RTLIL)<br>
+FPS 157.6, pixel clock 48.4 MHz (verilator)<br>
+
+**Pergola's StaticTestImageGenerator**<br>
+![image](https://user-images.githubusercontent.com/8551129/197365006-9b0ba714-ce9f-4c03-9dbe-d912abcf64de.png)<br>
+FPS 1039.5, pixel clock 319.3 MHz (simulation)<br>
+FPS 1033.1, pixel clock 317.4 MHz (thru RTLIL)<br>
+FPS 200.4, pixel clock 61.6 MHz (verilator)<br>
