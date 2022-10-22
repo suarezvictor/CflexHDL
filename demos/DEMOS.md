@@ -26,3 +26,6 @@ make VGA_SRC=build/migen_vga.cc MIGEN_VGA=litex_vga.py clean all<br>
 FPS 764.4, pixel clock 234.8 MHz (simulation)<br>
 FPS 136.8, pixel clock 42.0 MHz (verilator)<br>
 
+** Pergola's TestImageGenerator**<br>
+![image](https://user-images.githubusercontent.com/8551129/197364164-a1b41146-107c-4a42-a2b3-8173451213f2.png)<br>
+FPS 553.2, pixel clock 169.9 MHz (RTLIL)
