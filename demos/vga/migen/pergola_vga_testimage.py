@@ -16,7 +16,7 @@ Other authors retain ownership of their contributions. If a submission can reaso
 
 from migen import *
 class StaticTestImageGenerator(Module):
-    def __init__(self, h_ctr, v_ctr, pix_active, vsync, r, g, b):
+    def __init__(self, h_ctr, v_ctr, pix_active, vsync, r, g, b, speed=0):
         self.vsync = vsync
         self.v_ctr = v_ctr
         self.h_ctr = h_ctr
@@ -33,7 +33,7 @@ class StaticTestImageGenerator(Module):
 
 
 class TestImageGenerator(Module):
-    def __init__(self, h_ctr, v_ctr, pix_active, vsync, r, g, b):
+    def __init__(self, h_ctr, v_ctr, pix_active, vsync, r, g, b, speed=1):
         self.vsync = vsync
         self.v_ctr = v_ctr
         self.h_ctr = h_ctr
@@ -41,22 +41,22 @@ class TestImageGenerator(Module):
         self.g = g
         self.b = b
         self.pix_active = pix_active
+        
+        self.frame = Signal(11)
+        self.speed = speed
 
         # # #
 
         vsync = self.vsync
         v_ctr = self.v_ctr
         h_ctr = self.h_ctr
-        r = self.r
-        g = self.g
-        b = self.b
 
         frame = self.frame
         vsync_r = Signal()
-        self.sync += vsync_r.eq(vsync)
         self.sync += If(~vsync_r & vsync,
-            frame.eq(frame + 1)
+            frame.eq(frame + speed)
             )
+        self.sync += vsync_r.eq(vsync) #FIXME: should be independent of position
 
         frame_tri = Mux(frame[8], ~frame[:8], frame[:8])
         frame_tri2 = Mux(frame[9], ~frame[1:9], frame[1:9])
