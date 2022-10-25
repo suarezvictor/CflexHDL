@@ -5,12 +5,12 @@ SIMULATION RESULTS: Average duty cycle: 49%, clock frequency 437 MHz<br>
 #Graphics demos<br>
 cd demos/vga<br>
 
-**Pergola's ROTOZOOM:**<br>
-![image](https://user-images.githubusercontent.com/8551129/196615024-e890c3fa-6fb1-49be-b37e-ab7f29763734.png)<br>
+**Pergola's ROTOZOOM (with some tweaks):**<br>
+![image](https://user-images.githubusercontent.com/8551129/197871242-040e7d9b-c387-45d0-91dd-bbdb5ac5e535.png)
 
 make VGA_SRC=build/migen_vga.cc clean all<br>
-FPS 503.3, pixel clock 154.6 MHz (simulation)<br>
-FPS 181.5, pixel clock 55.7 MHz (verilator)<br>
+FPS 486.8, pixel clock 149.5 MHz (simulation)<br>
+FPS 158.5, pixel clock 48.7 MHz (verilator)<br>
 
 **Silice's FLYOVER 3D:**<br>
 ![image](https://user-images.githubusercontent.com/8551129/196614548-fd2ee539-0427-47b6-b9b3-d4dd9885be80.png)<br>
