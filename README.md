@@ -5,7 +5,7 @@ Design digital circuits in C. Simulate really fast with a regular compiler! <br>
 **Q**: So can it run algorithms without a CPU?<br>
 **A**: Yes, the algorithm gets implemented as hardware, with gates interconnected to match the C code logic. Complex algorithms are possible like rendering graphics as demoed.<br>
 **Q**: Is the simulation that fast?<br>
-**A**: Well, the fastest logic simulator is Verilator, and after some tests converting existing logic cores writen in migen to CflexHDL (unsing a provided automatic tool), speed gains were 2.5X to 5X compared with the same cores simulated with Verilator (a few tests, but in all cases so far). See [DEMOS.md](demos/DEMOS.md) or this [video](https://youtu.be/QS_XVe824Ck).
+**A**: Well, the fastest logic simulator is Verilator, and after some tests converting existing logic cores writen in verilog or migen to CflexHDL (unsing a provided automatic tool), speed gains were 2.5X to 5X, and up to 10X in some cases, compared with the same cores simulated with Verilator (a few tests, but in all cases so far). See [DEMOS.md](demos/DEMOS.md) or this [video](https://youtu.be/QS_XVe824Ck).
 
 # TL;DR
 See the [CflexHDL slides](https://suarezvictor.github.io/cflexhdl/slides.html)
