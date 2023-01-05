@@ -142,4 +142,7 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
         caselabel = "case " + caselabel if caselabel is not None else "default"
         return "\n" + self.ind + caselabel + ": " + casestmt + "\n" + self.ind + "break;"
       
+    def generate_for(self, for1, for2, for3, forbody):
+        s = "for(" + for1 + ";" + for2 + ";" + for3 + ")"
+        return s + forbody
 
