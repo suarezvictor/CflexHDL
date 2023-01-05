@@ -11,7 +11,9 @@ sys.path.append("../../cflexparser")
 from clangparser import CFlexClangParser, CFlexBasicCPPGenerator, concat_tokens, mangle_type, remove_type_qualifiers
 from clang.cindex import TypeKind
 
-
+def has_type_qualifier(typ, qualifier): #FIXME: move to clangparser
+  #print("//type", typ, "qualifier", qualifier)
+  return qualifier in typ
 
 class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
     def adjust_noncompund_statement(self, stmt):
@@ -63,8 +65,9 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
 
     def generate_param_decl(self, decltyp, name):
         t = self.indent()
+        register = has_type_qualifier(decltyp, "register")
         if decltyp.endswith("&") and not decltyp.startswith("const"):
-            decltyp = "output!\t" + remove_type_qualifiers(decltyp[:-2]) #FIXME: not always the ! modifier is needed
+            decltyp = "output" + ("!" if register else "") + "\t" + remove_type_qualifiers(decltyp[:-2])
         else:
             decltyp = "input\t" + remove_type_qualifiers(decltyp)
         s = "\n"+t + decltyp + "\t" + name
@@ -111,8 +114,8 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         return s + self.adjust_noncompund_statement(else_stmt)
 
     def generate_null_stmt(self):
-        #return ""
-        return "\n++:" #insert clock statement FIXME: check yield() statement/macro usage
+        return ""
+        #return "\n++:" #insert clock statement FIXME: check yield() statement/macro usage
 
     def generate_comment(self, kind, comment):
         #return "#"+kind+"#"+comment
@@ -121,6 +124,13 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
     def generate_case_label(self, caselabel, casestmt):
         caselabel = "case " + caselabel if caselabel is not None else "default"
         return "\n" + self.ind + caselabel + ": " + casestmt #no "break"
+
+    def generate_for(self, for1, for2, for3, forbody):
+        #transform for in while
+        s = for1 + ";\n" + self.ind
+        s += "while(" + for2 + ") {\n" + self.ind
+        s += forbody + for3 + ";}"
+        return s
 
 from clang.cindex import CursorKind
 
