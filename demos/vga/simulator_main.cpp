@@ -21,7 +21,7 @@ static uint32_t pixels[FRAME_HEIGHT][FRAME_WIDTH];
 struct VM_vga_demo //mimics Verilator variables
 {
   uint10 out_pix_x, out_pix_y;
-  uint1 out_video_hs, out_video_vs, out_video_de;
+  uint1 out_video_hs, out_video_vs, out_video_de = 1;
   uint8 out_video_r, out_video_g, out_video_b;
 } top_instance;
 #define top (&top_instance)
@@ -32,7 +32,7 @@ VM_vga_demo *top = new VM_vga_demo;
 
 inline void render_pixel()
 {
-  //printf("x, y %d, %d\n", top->out_pix_x, top->out_pix_y);
+  //printf("x, y %d, %d, de %d\n", top->out_pix_x, top->out_pix_y, top->out_video_de);
   if(!top->out_video_de)
     return;
 

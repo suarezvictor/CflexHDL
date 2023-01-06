@@ -13,24 +13,23 @@ MODULE vga_timing(uint1 &vga_hs, uint1 &vga_vs, uint1 &vga_de, uint10& vga_out_x
 	while(always())
 #endif
 	{
-		vga_hs = (vga_x == FRAME_WIDTH-1);
-	  	vga_vs = (vga_y == FRAME_HEIGHT-1);
-
-	  	vga_de = !vga_hs && !vga_vs;
-
-	  	if(vga_x == FRAME_WIDTH)
+	  	if(vga_x > FRAME_WIDTH + 10)
 	  	{
 			vga_x = 0;
-			if(vga_y == FRAME_HEIGHT)
+			if(vga_y > FRAME_HEIGHT + 10)
 			  vga_y = 0;
 			else
 			  vga_y = vga_y + 1;
-		  }
-		  else
+		}
+		else
 			vga_x = vga_x + 1;
 
-		 vga_out_x = vga_x;
-		 vga_out_y = vga_y;
+		vga_hs = (vga_x >= FRAME_WIDTH);
+	  	vga_vs = (vga_y >= FRAME_HEIGHT);
+	  	vga_de = !vga_hs && !vga_vs;
+
+		vga_out_x = vga_x;
+		vga_out_y = vga_y;
 	}
 }
 
