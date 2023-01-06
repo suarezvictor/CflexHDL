@@ -127,9 +127,14 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
 
     def generate_for(self, for1, for2, for3, forbody):
         #transform for in while
-        s = for1 + ";\n" + self.ind
-        s += "while(" + for2 + ") {\n" + self.ind
-        s += forbody + for3 + ";}"
+        s = "\n" + self.ind
+        if for1 is not None:
+          s += for1 + ";\n" + self.ind
+        s += "while(" + ("1" if for2 is None else for2) + ")"
+        if for3 is None:
+          s += forbody
+        else:
+          s += " { //for" + forbody + " " + for3 + ";}"
         return s
 
 from clang.cindex import CursorKind

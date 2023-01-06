@@ -1,30 +1,25 @@
-// Flying over 3D planes demo
-// ported* from Silice HDL to C (compatible with CFlexHDL)
-//
-// (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
-// (C) 2020 Sylvain Lefebvre (original code, MIT LICENSE)
-// *https://github.com/sylefeb/Silice/blob/master/projects/vga_demo/vga_flyover3d.ice
+// Simple video pattern generation demo
+// (C) 2023 Victor Suarez Rovere <suarezvictor@gmail.com>
 
 #include "cflexhdl.h"
 #include "vga_config.h"
 
-typedef uint8 uint_color_depth;
 MODULE frame_display(
   const uint10 &pix_x,
   const uint10 &pix_y,
   const uint1  &pix_active,
   const uint1  &pix_vblank,
-  uint_color_depth &pix_r,
-  uint_color_depth &pix_g,
-  uint_color_depth &pix_b
+  uint8 &pix_r,
+  uint8 &pix_g,
+  uint8 &pix_b
 ) {
 
    // display frame
    uint16 frame = 0;
    uint16 x;
    uint16 y;
-
-   while (1)
+   
+   for(;;)
    {
      while(pix_vblank != 0)
        wait_clk();
@@ -38,7 +33,7 @@ MODULE frame_display(
        {
          pix_r = x;
          pix_g = y + frame;
-         pix_b = x^y;
+         pix_b = x ^ y;
 
          wait_clk();
        }

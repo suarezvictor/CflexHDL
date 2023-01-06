@@ -151,7 +151,7 @@ class _CRG_arty(Module):
 
 
 def build_arty(args, toolchain):
-	from litex_boards.platforms import arty as board
+	from litex_boards.platforms import digilent_arty as board
 	if toolchain is None:
 		platform = board.Platform() #default
 	else:
