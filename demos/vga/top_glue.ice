@@ -9,14 +9,14 @@
 $$color_depth = 8
 
 algorithm vga_demo(
-  output!  uint10             pix_x,
-  output!  uint10             pix_y,
-  output! uint$color_depth$ video_r,
-  output! uint$color_depth$ video_g,
-  output! uint$color_depth$ video_b,
-  output!  uint1             video_hs,
-  output!  uint1             video_vs,
-  output!  uint1             video_de,
+  output  uint10             pix_x,
+  output  uint10             pix_y,
+  output uint$color_depth$ video_r,
+  output uint$color_depth$ video_g,
+  output uint$color_depth$ video_b,
+  output  uint1             video_hs,
+  output  uint1             video_vs,
+  output  uint1             video_de,
 )
 {
   vga_timing vga (

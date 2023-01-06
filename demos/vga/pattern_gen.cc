@@ -20,12 +20,15 @@ MODULE frame_display(
 ) {
 
    // display frame
-   uint16_t x;
-   uint16_t y;
+   uint16 frame = 0;
+   uint16 x;
+   uint16 y;
+
    while (1)
    {
      while(pix_vblank != 0)
        wait_clk();
+
      for(y = 0; y < FRAME_HEIGHT; y=y+1)
      {
        while(!pix_active)
@@ -34,11 +37,13 @@ MODULE frame_display(
        for(x = 0; x < FRAME_WIDTH; x=x+1)
        {
          pix_r = x;
-         pix_g = y;
+         pix_g = y + frame;
          pix_b = x^y;
+
          wait_clk();
        }
      }
+     frame = frame + 1;
    }
 
 }
