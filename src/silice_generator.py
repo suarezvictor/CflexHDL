@@ -243,6 +243,8 @@ class CFlexClangParserSilice(CFlexClangParser):
         # if len(childs) == 0: #no real calls
         #    return None
         name = c.spelling
+        if name == "__sync_synchronize":
+            return "\n++:"
         if name == "operator()":
             name = next(childrepr)
             next(childrepr)

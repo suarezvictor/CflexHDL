@@ -16,15 +16,20 @@ typedef uint10 uint10_t;
 typedef uint15 uint15_t;
 typedef uint16 uint16_t;
 typedef uint25 uint25_t;
+typedef uint32 uint32_t;
+
+typedef int10 int10_t;
 
 
 #if !defined(CFLEX_SIMULATION)
 
 #define always(...) 1
-#define wait_clk() {}
+#define wait_clk()
+#define add_clk() __sync_synchronize()
 #define MODULE void
 
 #else
+#define add_clk()
 
 #define always(...) ({wait_clk(); true;})
 
@@ -34,7 +39,7 @@ typedef uint25 uint25_t;
 #else
 
 #include "coro.h"
-#define wait_clk() co_yield 0
+#define wait_clk() {co_yield 0;}
 #define MODULE Coroutine
 
 #endif
@@ -46,5 +51,10 @@ typedef uint25 uint25_t;
 //#define wait_cond(cond) while(always() && (cond)==0)
 
 #define bitslice(B, E, n) (((n) >> (E)) & ((1 << ((B)-(E)+1))-1))
+
+#ifndef promote_u64
+#define promote_u64(x) (x) //just needed if compiled (like 32-bit multiplication with 64-bit output)
+#endif
+
 
 #endif //__SILICE_COMPAT_H__
