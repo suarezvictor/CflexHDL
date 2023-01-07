@@ -51,17 +51,29 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
 
     def generate_function_decl(self, rettyp, name, argsexpr, stmtexpr):
         if name == "__silice_main": name = "main" #avoid name clash with C++
-        s = "(" + self.generate_expr(argsexpr, ",") + "\n)"
-        print("...PROCESSING", name, s, file=sys.stderr)
-
-        if stmtexpr is not None:
+        print("...PROCESSING FUNCTION", name, file=sys.stderr)
+        s = ""
+        
+        if rettyp != "void": #circuitry
+            algo_typ = "circuitry"
+            s = "(output result, "
+            args = []
+            for arg in argsexpr:
+              argw = arg.split()
+              if argw[0] == "input":
+                args += ["input " + " ".join(argw[2:])] #skips arg type (2nd word)
+            s += ", ".join(args) + ")"
+              
+        elif stmtexpr is not None:
+            algo_typ = "algorithm"
+            s = "(" + self.generate_expr(argsexpr, ",") + "\n)"
             if name[0] != '_':
               s += " <autorun>"
             else:
               name = name[1:]
-            s += self.generate_expr(stmtexpr)
-
-        return "algorithm " + name + s + "\n"
+        
+        s += self.generate_expr(stmtexpr)
+        return algo_typ + " "  + name + s + "\n\n"
 
     def generate_param_decl(self, decltyp, name):
         t = self.indent()
@@ -73,6 +85,10 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         s = "\n"+t + decltyp + "\t" + name
         self.unindent()
         return s
+
+    def generate_return_stmt(self, stmtexpr):
+        return "\n" + self.ind + "result = " + self.generate_expr(stmtexpr) + ";"
+
 
     def generate_compound_stmt(self, stmtexpr):
         t = self.indent()
