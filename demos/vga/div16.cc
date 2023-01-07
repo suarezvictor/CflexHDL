@@ -58,10 +58,12 @@ MODULE div16(const uint16& num, const uint16& den, uint16& ret) //FIXME: correct
 #else
 
 //typedef uint16 uint_div_width;
-#define DIV_ITERATION(i) \
+
+/*
+#define DIV_ITERATION() \
     R1 = (R << 1); \
     add_clk(); \
-    if((num >> i) & 1) \
+    if(num & mask) \
       R = R1 | 1; \
     else \
       R = R1; \
@@ -70,31 +72,56 @@ MODULE div16(const uint16& num, const uint16& den, uint16& ret) //FIXME: correct
     if ((RD >> 15) == 0) \
     { \
       R = RD; \
-      ret = ret | (1 << i); \
+      ret = ret | mask; \
     } \
+    mask = mask >> 1;
+*/
 
 static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
 {
   uint16 RD = 0;
   uint16 R = 0;
+  uint16 mask;
   uint16 R1;
+  uint16 n;
+  n = num;
   ret = 0;
-  DIV_ITERATION(15)
-  DIV_ITERATION(14)
-  DIV_ITERATION(13)
-  DIV_ITERATION(12)
-  DIV_ITERATION(11)
-  DIV_ITERATION(10)
-  DIV_ITERATION(9)
-  DIV_ITERATION(8)
-  DIV_ITERATION(7)
-  DIV_ITERATION(6)
-  DIV_ITERATION(5)
-  DIV_ITERATION(4)
-  DIV_ITERATION(3)
-  DIV_ITERATION(2)
-  DIV_ITERATION(1)
-  DIV_ITERATION(0)
+#ifdef DIV_ITERATION
+  mask = 32768;
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+  DIV_ITERATION()
+#else
+  for(mask = 32768; mask != 0; mask = mask >> 1)
+  {
+    R1 = R << 1;
+
+    add_clk();
+    R = R1 | (n >> 15);
+    n = n << 1;
+
+    add_clk();
+    RD = R - den;
+    if (!(RD & 32768))
+    {
+      R = RD;
+      ret = ret | mask;
+    }
+  }
+#endif
 }
 
 #endif

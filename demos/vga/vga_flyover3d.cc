@@ -8,6 +8,11 @@
 #include "cflexhdl.h"
 #include "vga_config.h"
 
+//#define USE_DIV_ALGORITHM
+#ifdef USE_DIV_ALGORITHM
+#include "div16.cc"
+#endif
+
 //#define NO_MULT
 
 /*
@@ -29,8 +34,11 @@ public:
  div16(uint_div_width& ret) : _ret(ret) {}
  void operator()(int16 n, int16 d)
  {
-   _ret = n/d;
-   //_div16(a, b, _ret);
+#ifndef USE_DIV_ALGORITHM
+   _ret = n/d; //FAST
+#else
+   _div16(n, d, _ret);
+#endif
  }
 };
 
