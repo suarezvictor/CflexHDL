@@ -16,6 +16,19 @@ def has_type_qualifier(typ, qualifier): #FIXME: move to clangparser
   return qualifier in typ
 
 class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)        
+        self.functions = {}
+
+    def callinstance(self, expr): #FIXME: this detects a call by string
+        index = expr.find("(")
+        if index == -1:
+            return None
+        fn = expr[:index]
+        if fn in self.functions:
+          return fn
+        return None
+    
     def adjust_noncompund_statement(self, stmt):
         if not stmt or stmt.lstrip()[0] != "{":
             t = self.indent()
@@ -56,13 +69,12 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         
         if rettyp != "void": #circuitry
             algo_typ = "circuitry"
-            s = "(output result, "
-            args = []
+            args = ["output result"]
             for arg in argsexpr:
               argw = arg.split()
               if argw[0] == "input":
                 args += ["input " + " ".join(argw[2:])] #skips arg type (2nd word)
-            s += ", ".join(args) + ")"
+            s = "(" + (", ".join(args)) + ")"
               
         elif stmtexpr is not None:
             algo_typ = "algorithm"
@@ -72,6 +84,7 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
             else:
               name = name[1:]
         
+        self.functions[name] = name
         s += self.generate_expr(stmtexpr)
         return algo_typ + " "  + name + s + "\n\n"
 
@@ -97,6 +110,9 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         return "\n" + t + "{" + s +"\n"+t + "}"
 
     def generate_assignment_operator(self, lhs, op, rhs):
+        callname = self.callinstance(rhs)
+        if callname is not None:
+            lhs = "(" + lhs + ")"
         return "\n" + self.ind + lhs + " " + op + " " + rhs + ";" # op: =, &=, >>=, etc
 
     #FIXME: move to generic class
@@ -260,11 +276,16 @@ class CFlexClangParserSilice(CFlexClangParser):
         #    return None
         name = c.spelling
         if name == "__sync_synchronize":
-            return "\n++:"
+            return "\n++:" # add clock
+        if name == "__builtin_huge_vall":
+            return "\n  -> // next pipeline stage"
+
         if name == "operator()":
             name = next(childrepr)
             next(childrepr)
             return self.generator.generate_call_instance(name, childrepr)
+
+        next(childrepr)
         return self.generator.generate_call(name, childrepr)
 
     def onVAR_DECL(self, c, childs, childrepr, tokens):
