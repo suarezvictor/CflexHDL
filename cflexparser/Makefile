@@ -9,7 +9,8 @@ $(PARSER_C):
 	@rm clangparser.cxx
 
 clangparser.so: $(PARSER_C)
-	$(CC) -o clangparser.so -shared $(PARSER_C) -fPIC $(shell python3-config --cflags --ldflags)
+	$(CC) -o clangparser.so -shared $(PARSER_C) -fPIC $(shell python3-config --embed --cflags --ldflags)
+
 
 clean:
 	rm -Rf clangparser.so $(PARSER_C) clangparser.cxx __pycache__ private/__pycache__

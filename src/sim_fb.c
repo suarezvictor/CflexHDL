@@ -1,7 +1,11 @@
 // Simple framebuffer windows for visualizations
 // Copyright (C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
 
-#include <SDL2/SDL.h>
+#ifdef __APPLE__
+    #include <SDL.h>
+#else
+    #include <SDL2/SDL.h>
+#endif 
 #include "sim_fb.h"
 
 bool fb_init(unsigned width, unsigned height, bool vsync, fb_handle_t *handle)
