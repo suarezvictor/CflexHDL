@@ -1,8 +1,8 @@
-#Led glow<br>
+# Led glow<br>
 cd led_glow && make<br>
 SIMULATION RESULTS: Average duty cycle: 49%, clock frequency 437 MHz<br>
 
-#Graphics demos<br>
+# Graphics demos<br>
 cd demos/vga<br>
 
 **Pergola's ROTOZOOM (with some tweaks):**<br>
