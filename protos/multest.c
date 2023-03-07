@@ -6,6 +6,7 @@
 
 typedef uint32_t uint18_t, uint19_t, uint27_t;
 typedef uint16_t uint9_t;
+typedef uint8_t uint3_t;
 
 #define PREC 16 //try 16 bits of precision or less
 
@@ -73,17 +74,33 @@ uint16_t prod2(uint16_t _a, uint16_t _b) //1 LSB error @11-16 bits
   uint9_t b1 = (b >> 9) & 0x1FF;
 
   uint27_t c = 0;
-  for(int i = 0; i < 3; ++i)
+  uint3_t i = 1; //one hot
+  while(i != 8)
   {
     uint9_t pa = i & 1 ? a0 : a1;
     uint9_t pb = i & 2 ? b0 : b1;
     uint18_t p = pa * pb;
-    c += p;
-    if(i == 0)
-      c = c << 9;
+    c += (i == 4) ? p << 9 : p;
+    i = i << 1;
   }
 
   return c >> (PREC-9+(18-PREC)+(18-PREC));
+}
+
+uint16_t prod3(uint16_t a, uint16_t b) //1 LSB error @11-16 bits
+{
+  uint27_t c = 0;
+  uint3_t i = 1; //one hot
+  while(i != 8)
+  {
+    uint9_t pa = (i & 1 ? a << 2 : a >> 7) & 0x1FF;
+    uint9_t pb = (i & 2 ? b << 2 : b >> 7) & 0x1FF;
+    uint18_t p = pa * pb;
+    c += (i == 4) ? p << 9 : p;
+    i = i << 1;
+  }
+
+  return c >> 11;
 }
 
 int main()
