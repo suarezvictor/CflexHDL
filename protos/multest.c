@@ -73,25 +73,10 @@ uint16_t prod2(uint16_t _a, uint16_t _b) //1 LSB error @11-16 bits
   uint9_t b1 = (b >> 9) & 0x1FF;
 
   uint27_t c = 0;
-  uint9_t pa, pb;
   for(int i = 0; i < 3; ++i)
   {
-    switch(i)
-    {
-      case 0:
-        pa = a1;
-        pb = b1;
-        break;
-      case 1:
-        pa = a1;
-        pb = b0;
-        break;
-     case 2:
-        pa = a0;
-        pb = b1;
-        break;
-
-    }
+    uint9_t pa = i & 1 ? a0 : a1;
+    uint9_t pb = i & 2 ? b0 : b1;
     uint18_t p = pa * pb;
     c += p;
     if(i == 0)
