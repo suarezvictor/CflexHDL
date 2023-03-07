@@ -74,14 +74,14 @@ uint16_t prod2(uint16_t _a, uint16_t _b) //1 LSB error @11-16 bits
   uint9_t b1 = (b >> 9) & 0x1FF;
 
   uint27_t c = 0;
-  uint3_t i = 1; //one hot
-  while(i != 8)
+  uint3_t i = 4; //one hot
+  while(i)
   {
-    uint9_t pa = i & 1 ? a0 : a1;
+    uint9_t pa = i & 4 ? a0 : a1;
     uint9_t pb = i & 2 ? b0 : b1;
     uint18_t p = pa * pb;
-    c += (i == 4) ? p << 9 : p;
-    i = i << 1;
+    c += i & 1 ? p << 9 : p;
+    i = i >> 1;
   }
 
   return c >> (PREC-9+(18-PREC)+(18-PREC));
