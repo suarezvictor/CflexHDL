@@ -6,17 +6,16 @@
 
 typedef uint32_t uint18_t, uint19_t, uint27_t;
 typedef uint16_t uint9_t;
-typedef uint16_t uint14_t;
 
 #define PREC 16 //try 16 bits of precision or less
 
-uint14_t prod_ref(uint14_t a, uint14_t b)
+uint16_t prod_ref(uint16_t a, uint16_t b)
 {
   return (a*(uint32_t)b) >> PREC;
 }
 
 
-uint14_t prod0(uint14_t _a, uint14_t _b) //1 LSB error @11-16 bits
+uint16_t prod0(uint16_t _a, uint16_t _b) //1 LSB error @11-16 bits
 {
   uint18_t a = _a << (18-PREC);
   uint18_t b = _b << (18-PREC);
@@ -62,7 +61,7 @@ uint16_t prod1(uint16_t _a, uint16_t _b) //no error @ 14 bits
 }
 
 
-uint14_t prod2(uint14_t _a, uint14_t _b) //1 LSB error @11-16 bits
+uint16_t prod2(uint16_t _a, uint16_t _b) //1 LSB error @11-16 bits
 {
   uint18_t a = _a << (18-PREC);
   uint18_t b = _b << (18-PREC);
