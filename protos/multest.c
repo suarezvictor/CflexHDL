@@ -61,7 +61,6 @@ uint16_t prod1(uint16_t _a, uint16_t _b) //no error @ 14 bits
   return (c0 + (c1 << 8) + (c2 << 16)) >> PREC;
 }
 
-
 uint16_t prod2(uint16_t _a, uint16_t _b) //1 LSB error @11-16 bits
 {
   uint18_t a = _a << (18-PREC);
