@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-typedef uint32_t uint18_t, uint19_t;
+typedef uint32_t uint18_t, uint19_t, uint27_t;
 typedef uint16_t uint9_t;
 typedef uint16_t uint14_t;
 
@@ -29,11 +29,9 @@ uint14_t prod0(uint14_t _a, uint14_t _b) //1 LSB error @11-16 bits
 
 
   uint18_t c2 = a1 * b1;
-  //uint18_t c0 = a0 * b0;
-  uint18_t c0 = 0; //may introduce errors
   uint19_t c1 = a1 * b0 + a0 * b1;
 
-  return (c0 + (c1 << 9) + ((uint64_t)c2 << 18)) >> (PREC+(18-PREC)+(18-PREC));
+  return (c1  + (c2 << 9)) >> (PREC-9+(18-PREC)+(18-PREC));
 }
 
 
@@ -64,26 +62,67 @@ uint16_t prod1(uint16_t _a, uint16_t _b) //no error @ 14 bits
 }
 
 
+uint14_t prod2(uint14_t _a, uint14_t _b) //1 LSB error @11-16 bits
+{
+  uint18_t a = _a << (18-PREC);
+  uint18_t b = _b << (18-PREC);
+
+  uint9_t a0 = a & 0x1FF;
+  uint9_t a1 = (a >> 9) & 0x1FF;
+
+  uint9_t b0 = b & 0x1FF;
+  uint9_t b1 = (b >> 9) & 0x1FF;
+
+  uint27_t c = 0;
+  uint9_t pa, pb;
+  for(int i = 0; i < 3; ++i)
+  {
+    switch(i)
+    {
+      case 0:
+        pa = a1;
+        pb = b1;
+        break;
+      case 1:
+        pa = a1;
+        pb = b0;
+        break;
+     case 2:
+        pa = a0;
+        pb = b1;
+        break;
+
+    }
+    uint18_t p = pa * pb;
+    c += p;
+    if(i == 0)
+      c = c << 9;
+  }
+
+  return c >> (PREC-9+(18-PREC)+(18-PREC));
+}
+
 int main()
 {
   srand(0);
   int maxerr = 0;
-  for(int i = 0; i < 1000000; ++i)
+  for(int i = 0; i < 100*1000*1000; ++i)
   {
     uint16_t a = rand();
     uint16_t b = rand();
     a >>= (16-PREC);
     b >>= (16-PREC);
-    uint16_t c0 = prod1(a, b);
+    uint16_t c0 = prod2(a, b);
     uint16_t c1 = prod_ref(a, b);
     int err = abs(c0 - c1);
     const float K = 1./(1 << PREC);
+    /*
     printf("iter %d, a %d (%f), b %d (%f), prod %d (%f), ref %d (%f), error %d\n", i,
       a, a*K,
       b, b*K,
       c0, c0*K,
       c1, c1*K,
-      err);
+      err);*/
       
     if(maxerr < err)
       maxerr = err;
