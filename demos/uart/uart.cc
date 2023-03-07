@@ -28,7 +28,7 @@ MODULE uart_tx(const uint8& data, uint1& tx_pin, const uint32& clock_counter)
   }
 
   tx_pin = 1; //stop bit
-  while(clock_counter < t1);
+  while(clock_counter < t1)
     wait_clk();
 }
 
