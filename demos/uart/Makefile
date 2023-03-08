@@ -1,3 +1,4 @@
+SHELL=bash
 MODULE_SRC?=uart.cc
 GENERATOR?=../../src/silice_generator.py
 PARSER=../../cflexparser/clangparser.so
@@ -8,7 +9,7 @@ CFLAGS+=-O3 -flto $(INCLUDE)
 GCCFLAGS=-DCFLEX_NO_COROUTINES
 #CLANGFLAGS=-Wno-parentheses-equality -Wno-deprecated -Wno-deprecated-experimental-coroutine -std=c++20 -stdlib=libc++ -fcoroutines-ts
 #CLANGFLAGS+=-I/media/vsuarez/elocaldata/SCRATCH/llvm-project/libcxx/include/
-#CLANGFLAGS+=-DCFLEX_NO_COROUTINES
+CLANGFLAGS+=-DCFLEX_NO_COROUTINES #clang does not work with coroutines that finish
 
 all: run
 
