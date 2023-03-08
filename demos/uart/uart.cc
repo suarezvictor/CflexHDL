@@ -1,42 +1,52 @@
 #include "cflexhdl.h"
 
 #ifndef UART_CLKS_PER_BIT
-#define UART_CLKS_PER_BIT 10000
+#define UART_CLKS_PER_BIT 1//0000
 #endif
 
 #define uart_tx _uart_tx
 
-MODULE uart_tx(const uint8& data, uint1& tx_pin, const int32& clock_counter)
+MODULE uart_tx(const uint8& data, uint1& tx_pin, uint1& out_valid, const int32& clock_counter)
 {
 #if 0
-while(always()) { //clang 14 needs this to avoid compiler error
+while(always()) { //clang 14 needs this to avoid internal compiler error
 #endif
 
   int32 t1;
   t1 = clock_counter + UART_CLKS_PER_BIT;
 
   //---- start bit --------------------------------
-  tx_pin = 0; //start bit
+  tx_pin = 0; out_valid = 1; //start bit
+
   while(clock_counter - t1 < 0)
+  {
     wait_clk();
+    out_valid = 0;
+  }
   t1 = t1 + UART_CLKS_PER_BIT;
 
   //---- data bits -------------------------------
   uint8 mask;
   for(mask = 1; mask != 0;  mask = mask << 1)
   {
-    tx_pin = (data & mask) != 0;
+    tx_pin = (data & mask) != 0; out_valid = 1;
 
     while(clock_counter - t1 < 0)
+    {
       wait_clk();
-
+      out_valid = 0;
+    }
     t1 = t1 + UART_CLKS_PER_BIT;
   }
 
   //---- stop bit -------------------------------
-  tx_pin = 1;
+  tx_pin = 1; out_valid = 1;
   while(clock_counter - t1 < 0)
+  {
     wait_clk();
+    out_valid = 0;
+  }
+
 #if 0
 }
 #endif
