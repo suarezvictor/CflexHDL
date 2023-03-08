@@ -5,13 +5,14 @@ PARSER=../../cflexparser/clangparser.so
 BUILD?=build
 INCLUDE+=-I../../include -I../../src/ -I`pwd` 
 CFLAGS+=-O3 -flto $(INCLUDE)
-#GCCFLAGS=-std=c++20 -fcoroutines
-GCCFLAGS=-DCFLEX_NO_COROUTINES
+GCCFLAGS=-std=c++20 -fcoroutines
+#GCCFLAGS=-DCFLEX_NO_COROUTINES
 #CLANGFLAGS=-Wno-parentheses-equality -Wno-deprecated -Wno-deprecated-experimental-coroutine -std=c++20 -stdlib=libc++ -fcoroutines-ts
 #CLANGFLAGS+=-I/media/vsuarez/elocaldata/SCRATCH/llvm-project/libcxx/include/
 CLANGFLAGS+=-DCFLEX_NO_COROUTINES #clang does not work with coroutines that finish
 VERILATOR_OPT_FAST?=-O3
 #VERILATOR_OPT_FAST?=-ggdb
+SIMULATOR_MAIN?=simulator_main.cpp
 
 all: run
 
@@ -20,10 +21,10 @@ run: compile
 
 compile: $(BUILD)/compiled
 
-$(BUILD)/compiled: $(MODULE_SRC) simulator_main.cpp
+$(BUILD)/compiled: $(MODULE_SRC) $(SIMULATOR_MAIN)
 	mkdir -p $(BUILD)
-	g++ -DCFLEX_SIMULATION $(CFLAGS) $(GCCFLAGS) simulator_main.cpp -o $(BUILD)/compiled 
-	#clang++-14 -DCFLEX_SIMULATION $(CFLAGS) $(CLANGFLAGS) simulator_main.cpp -o $(BUILD)/compiled #clang is faster
+	g++ -DCFLEX_SIMULATION $(CFLAGS) $(GCCFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled 
+	#clang++-14 -DCFLEX_SIMULATION $(CFLAGS) $(CLANGFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled #clang is faster
 
 verilog: $(BUILD)/top_instance.v
 
@@ -40,8 +41,11 @@ $(BUILD)/top_instance.v: $(BUILD)/top_instance.ice
 verilator: $(BUILD)/VM_uart_tx
 	$(BUILD)/VM_uart_tx
 
-$(BUILD)/VM_uart_tx: $(BUILD)/top_instance.v simulator_main.cpp
-	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $(BUILD)/top_instance.v --top-module M_uart_tx --exe simulator_main.cpp -CFLAGS -DCFLEX_VERILATOR -CFLAGS -I`pwd` -CFLAGS -I../../../include -CFLAGS -I../../../src/ 
+$(BUILD)/VM_uart_tx: $(BUILD)/top_instance.v $(SIMULATOR_MAIN)
+	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $(BUILD)/top_instance.v \
+	  --top-module M_uart_tx --exe $(SIMULATOR_MAIN) -CFLAGS -DCFLEX_VERILATOR -CFLAGS -DCFLEX_SIMULATION \
+	  -CFLAGS -fcoroutines \
+	  -CFLAGS -I`pwd` -CFLAGS -I../../../include -CFLAGS -I../../../src/ 
 	cd build && make OPT_FAST=$(VERILATOR_OPT_FAST) -f VM_uart_tx.mk
 
 $(PARSER):

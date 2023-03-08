@@ -12,7 +12,7 @@
 #define ITERATIONS 20
 #define DISPLAY printf
 #else
-#define ITERATIONS 100*1000*1000
+#define ITERATIONS 10*1000*1000
 #define DISPLAY(...)
 #endif
 
@@ -43,6 +43,7 @@ internal loop gcc 317? coro/490? no coro
 no internal loop clang nocoro 1212
 no internal loop gcc nocoro 807
 no internal loop gcc coro 189
+verilator 11
 */
 
 #ifdef CFLEX_VERILATOR
@@ -80,6 +81,7 @@ int main()
 	{
       top->in_clock_counter = clk_count;
       out_valid = top->out_out_valid;
+      DISPLAY("out_valid %d\n", out_valid);
 	  if(out_valid)
 	  {
         tx_pin = top->out_tx_pin;
