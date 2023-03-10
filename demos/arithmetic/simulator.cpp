@@ -7,10 +7,6 @@
 
 #include "cflexhdl.h"
 
-#if defined(CFLEX_NO_COROUTINES) && defined(CFLEX_VERILATOR)
-#error cosimulation needs coroutines, CFLEX_NO_COROUTINES should NOT be defined
-#endif
-
 //#define _DEBUG
 
 #ifdef _DEBUG
@@ -22,7 +18,7 @@
 #endif
 
 static long clk_count = 0;
-#ifdef CFLEX_NO_COROUTINES
+#if defined(CFLEX_SIMULATION) && defined(CFLEX_NO_COROUTINES)
 inline void wait_clk() {++clk_count;}
 #endif
 
@@ -33,20 +29,28 @@ inline void wait_clk() {++clk_count;}
 VM_arithmetic *top = new VM_arithmetic;
 #endif
 
+uint16_t lc_random_16()
+{
+    static unsigned seed = 1;
+    seed = 48271 * seed + 1;
+    return seed;
+}
+
 int main()
 {
 
   clock_t start_time = clock();
   uint16_t sum = 0;
   uint16_t a = 0, b = 0, result = 0xFFFF, v_result = 0xFFFF;
-
-  for(int i = 0; i < ITERATIONS; ++i)
+  int i;
+  for(i = 0; i < ITERATIONS; ++i)
   {
+    //DISPLAY("iteration %d\n", i);
 #ifdef CFLEX_SIMULATION
 #ifdef CFLEX_NO_COROUTINES
-    prod16x16_16(a, b, result);
+    _arithmetic(a, b, result);
 #else
-    MODULE_TYPE m = prod16x16_16(a, b, result);
+    MODULE_TYPE m = _arithmetic(a, b, result);
 #endif
 #endif
 
@@ -60,7 +64,7 @@ int main()
 
 	while(!top->out_done)
 	{
-      //DISPLAY("waiting...\n");
+      //DISPLAY("verilator: step %ld, waiting...\n", clk_count);
       top->clock = 0; top->eval();
       top->clock = 1; top->eval();
 
@@ -82,19 +86,20 @@ int main()
     result = v_result;
 #endif
 
-    DISPLAY("A=0x%04X, B=0x%04X, C_RESULT=0x%04X, V_RESULT=0x%04X\n", a, b, result, v_result);
+    DISPLAY("step %ld, A=0x%04X, B=0x%04X, C_RESULT=0x%04X, V_RESULT=0x%04X\n", clk_count, a, b, result, v_result);
     sum += result;
 
 #ifdef CFLEX_VERILATOR  
     if(result != v_result)
     {
-      fprintf(stderr, "ERROR: cosimulation do not match\n");
-      break;
+      fprintf(stderr, "FAIL: cosimulation does NOT match\n");
+      exit(1);
     }
 #endif
   
-    a = rand();
-    b = rand();
+    
+    a = lc_random_16();
+    b = lc_random_16();
   }
 
   clock_t dt = clock()-start_time;
@@ -102,7 +107,12 @@ int main()
   delete top;
 #endif
 
-  printf("SIMULATION RESULTS: sum %hu, clock frequency %0.f MHz\n", sum, clk_count*1e-6*CLOCKS_PER_SEC/dt);
+  printf("SIMULATION RESULTS: time %.2fs, iterations %d, sum %hu, clock frequency %0.f MHz\n", float(dt)/CLOCKS_PER_SEC, i, sum, clk_count*1e-6*CLOCKS_PER_SEC/dt);
+
+#if defined(CFLEX_SIMULATION) && defined(CFLEX_VERILATOR)
+  printf("PASS\n");
+#endif
+
   return 0;
 }
 

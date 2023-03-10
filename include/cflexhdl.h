@@ -19,6 +19,8 @@ typedef uint25 uint25_t;
 typedef uint32 uint32_t;
 
 typedef int10 int10_t;
+#define uintN_internal(n) uint##n
+#define uintN(n) uintN_internal(n)
 
 
 #if !defined(CFLEX_SIMULATION)
@@ -26,10 +28,12 @@ typedef int10 int10_t;
 #define always(...) 1
 #define wait_clk()
 #define add_clk() __sync_synchronize()
+#define pipeline_stage() __builtin_huge_vall()
 #define MODULE void
 
 #else
-#define add_clk()
+#define add_clk() wait_clk()
+#define pipeline_stage()
 
 #define always(...) ({wait_clk(); true;})
 
@@ -40,7 +44,7 @@ typedef int10 int10_t;
 
 #include "coro.h"
 #define wait_clk() {co_yield 0;}
-#define MODULE Coroutine
+#include "moduledef.h"
 
 #endif
 
@@ -54,6 +58,10 @@ typedef int10 int10_t;
 
 #ifndef promote_u64
 #define promote_u64(x) (x) //just needed if compiled (like 32-bit multiplication with 64-bit output)
+#endif
+
+#ifndef promote_u128
+#define promote_u128(x) (x) //just needed if compiled (like 32-bit multiplication with 64-bit output)
 #endif
 
 
