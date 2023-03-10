@@ -9,14 +9,23 @@ uint16 fixed16_newton_initial_estimate(uint16 x)
   return x - (x>>4); //substracts 1/16 (so the factor is 15/16)
 }
 
+uint32 unsiged16_times_signed16(uint16 X, int16 b)
+{
+    uint16 bm = -b;
+    uint16 B = b;
+    return b < 0 ? -(X*bm) : X*B;
+}
+
 uint16 fixed16_div_newton(uint16 D, uint16 X)
 {
   uint16 a;
   int16 b;
   int16 c;
-  a = (D*X) >> 16;
+  uint32 xb;
+  a = D*X >> 16;
   b = (a^32767)+1;//0x8000u - a;
-  c = X*b >> (16-1);
+  xb = unsiged16_times_signed16(X, b); //X*b; //unsigned by signed bring issues in synthesys
+  c = xb >> (16-1); //TODO: use a function more suited to fixed point to avoid 32-bit results
   return X + c;
 }
 
@@ -25,11 +34,10 @@ uint16 fixed16_approx_reciprocal_bounded_half(uint16 D) //0x8000=0.5 to 0xFFFF=~
   uint16 X0;
   uint16 X1;
   uint16 X2;
-  uint16 X3;
   uint16 X = D^/*0x7FFF*/32767; //approximate negative and offset, good enough for an initial guess
   X0 = fixed16_newton_initial_estimate(X);
   X1 = fixed16_div_newton(D, X0);
-  X2 = fixed16_div_newton(D, X1);
+  X2 = fixed16_div_newton(D, X1); //this further step may not be needed
   return X2;
 }
 
