@@ -6,7 +6,7 @@ BUILD?=build
 INCLUDE+=-I../../include -I../../src/ -I`pwd` 
 CFLAGS+=-O3 -flto $(INCLUDE)
 GCCFLAGS=-std=c++20 -fcoroutines
-SIMULATOR_MAIN=cosimulator.cpp
+SIMULATOR_MAIN=simulator.cpp
 
 all: run
 

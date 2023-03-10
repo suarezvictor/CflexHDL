@@ -2,6 +2,7 @@
 //Copyright (C) 2023 Victor Suarez Rovere <suarezvictor@gmail.com>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "cflexhdl.h"
@@ -12,14 +13,20 @@
 #define ITERATIONS 30
 #define DISPLAY printf
 #else
-#define ITERATIONS 5*1000*1000
+#ifndef CFLEX_VERILATOR
+#define ITERATIONS 100*1000*1000
+#else
+#define ITERATIONS 1*1000*1000
+#endif
 #define DISPLAY(...)
 #endif
 
 #include "arithmetic.cc" //algorithm implementation
-#include "VM_arithmetic.h"
 
+#ifdef CFLEX_VERILATOR  
+#include "VM_arithmetic.h"
 VM_arithmetic *top = new VM_arithmetic;
+#endif
 
 #ifdef CFLEX_NO_COROUTINES
 #error this requires coroutines, CFLEX_NO_COROUTINES should NOT be defined
@@ -29,12 +36,14 @@ int main()
 {
 
   clock_t start_time = clock();
-  int32_t clk_count = 0;
+  long clk_count = 0;
   uint16_t a = 0, b = 0, result = 0xFFFF, v_result = 0xFFFF;
 
-  MODULE_TYPE *m = new MODULE_TYPE(prod16x16_16(a, b, result));
   for(int i = 0; i < ITERATIONS; ++i)
   {
+    MODULE_TYPE m = prod16x16_16(a, b, result);
+    
+#ifdef CFLEX_VERILATOR  
     top->in_run = 0;
     top->clock = 0; top->eval();
     top->clock = 1; top->eval();
@@ -51,27 +60,32 @@ int main()
       v_result = top->out_result;
       ++clk_count;
     }
-
-    while(m->clock()); //execute all steps
-
+#endif
+    while(m.clock()) //execute all steps
+    {
+#ifndef CFLEX_VERILATOR
+      ++clk_count;
+#endif
+    }
 
     DISPLAY("A=0x%04X, B=0x%04X, C_RESULT=0x%04X, V_RESULT=0x%04X\n", a, b, result, v_result);
 
+#ifdef CFLEX_VERILATOR  
     if(result != v_result)
     {
       fprintf(stderr, "ERROR: cosimulation do not match\n");
       break;
     }
-
-    delete m;
-    m = new MODULE_TYPE(prod16x16_16(a, b, result));
+#endif
   
     a = rand();
     b = rand();
   }
 
   clock_t dt = clock()-start_time;
+#ifdef CFLEX_VERILATOR  
   delete top;
+#endif
 
   printf("SIMULATION RESULTS: clock frequency %0.f MHz\n", clk_count*1e-6*CLOCKS_PER_SEC/dt);
   return 0;
