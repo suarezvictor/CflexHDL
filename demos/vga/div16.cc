@@ -107,14 +107,11 @@ static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
 #else
   for(mask = 32768; mask != 0; mask = mask >> 1)
   {
-    R1 = R << 1;
-
-    add_clk();
-    R = R1 | (n >> 15);
+    R = (R << 1) | (n >> 15);
     n = n << 1;
+    RD = R - den;
 
     add_clk();
-    RD = R - den;
     if (!(RD & 32768))
     {
       R = RD;
