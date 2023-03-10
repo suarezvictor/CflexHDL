@@ -1,6 +1,6 @@
 #include "cflexhdl.h"
 
-#define CFLEX_USE_DIV_NEWTON //newton algorithm is faster when compiled
+#define CFLEX_USE_DIV_NEWTON //newton algorithm is faster when compiled and when verilated
 
 #ifdef CFLEX_USE_DIV_NEWTON
 
