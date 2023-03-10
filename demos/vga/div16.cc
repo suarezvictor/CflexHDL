@@ -86,25 +86,6 @@ static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
   uint16 n;
   n = num;
   ret = 0;
-#ifdef DIV_ITERATION
-  mask = 32768;
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-  DIV_ITERATION()
-#else
   for(mask = 32768; mask != 0; mask = mask >> 1)
   {
     R = (R << 1) | (n >> 15);
@@ -118,7 +99,6 @@ static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
       ret = ret | mask;
     }
   }
-#endif
 }
 
 #endif
