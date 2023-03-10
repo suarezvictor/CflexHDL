@@ -4,8 +4,9 @@ GENERATOR?=../../src/silice_generator.py
 PARSER=../../cflexparser/clangparser.so
 BUILD?=build
 INCLUDE+=-I../../include -I../../src/ -I`pwd` 
-CFLAGS+=-O3 -flto $(INCLUDE)
+CFLAGS+=-O3 -flto $(INCLUDE) #-DCFLEX_NO_COROUTINES
 GCCFLAGS=-std=c++20 -fcoroutines
+CLANGFLAGS+=-DCFLEX_NO_COROUTINES #clang does not work with coroutines that finish
 SIMULATOR_MAIN=simulator.cpp
 VERILATOR_OPT_FAST?=-O3
 
@@ -18,8 +19,8 @@ compile: $(BUILD)/compiled
 
 $(BUILD)/compiled: $(MODULE_SRC) $(SIMULATOR_MAIN)
 	mkdir -p $(BUILD)
-	g++ -DCFLEX_SIMULATION $(CFLAGS) $(GCCFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled 
-	#clang++-14 -DCFLEX_SIMULATION $(CFLAGS) $(CLANGFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled #clang is faster
+	#g++ -DCFLEX_SIMULATION $(CFLAGS) $(GCCFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled 
+	clang++-14 -DCFLEX_SIMULATION $(CFLAGS) $(CLANGFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled #clang is faster
 
 verilog: $(BUILD)/top_instance.v
 
@@ -38,9 +39,11 @@ verilator: $(BUILD)/VM_arithmetic
 
 $(BUILD)/VM_arithmetic: $(BUILD)/top_instance.v $(SIMULATOR_MAIN)
 	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $(BUILD)/top_instance.v \
-	  --top-module M_arithmetic --exe $(SIMULATOR_MAIN) -CFLAGS -DCFLEX_VERILATOR -CFLAGS -DCFLEX_SIMULATION \
+	  --top-module M_arithmetic --exe $(SIMULATOR_MAIN) -CFLAGS -DCFLEX_VERILATOR \
 	  -CFLAGS -fcoroutines \
-	  -CFLAGS -I`pwd` -CFLAGS -I../../../include -CFLAGS -I../../../src/ 
+	  -CFLAGS -I`pwd` -CFLAGS -I../../../include -CFLAGS -I../../../src/ \
+	  -CFLAGS -DCFLEX_SIMULATION
+	  
 	cd build && make OPT_FAST=$(VERILATOR_OPT_FAST) -f VM_arithmetic.mk
 
 $(PARSER):
