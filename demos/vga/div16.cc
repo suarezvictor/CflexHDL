@@ -11,9 +11,9 @@ uint16 fixed16_newton_initial_estimate(uint16 x)
 
 uint32 unsiged16_times_signed16(uint16 X, int16 b)
 {
-    uint16 bm = -b;
-    uint16 B = b;
-    return b < 0 ? -(X*bm) : X*B;
+    uint16 abs_b = b < 0 ? -b : b;
+    uint32 m = X*abs_b;
+    return b < 0 ? -m : m;
 }
 
 uint16 fixed16_div_newton(uint16 D, uint16 X)

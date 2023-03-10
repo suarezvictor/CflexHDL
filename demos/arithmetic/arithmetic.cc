@@ -104,9 +104,13 @@ uint16 fixed16_newton_initial_estimate(uint16 e)
 
 uint32 unsiged16_times_signed16(uint16 X, int16 y)
 {
-    uint16 ym = -y;
-    uint16 Y = y;
-    return y < 0 ? -(X*ym) : X*Y;
+#if 0
+    return X*y; //this makes cosimulation not to match
+#else
+    uint16 abs_y = y < 0 ? -y : y;
+    uint32 m = X*abs_y;
+    return y < 0 ? -m : m;
+#endif
 }
 
 uint16 fixed16_div_newton(uint16 D, uint16 X)
