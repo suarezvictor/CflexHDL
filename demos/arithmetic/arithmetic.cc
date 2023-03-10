@@ -2,8 +2,6 @@
 
 #define prod16x16_16 _arithmetic
 
-//FIXME: move this code
-
 #define PREC 16 //try 16 bits of precision or less
 
 MODULE prod16x16_16(const uint16& a, const uint16& b, uint16& result) //1 LSB error @11-16 bits
@@ -13,11 +11,11 @@ MODULE prod16x16_16(const uint16& a, const uint16& b, uint16& result) //1 LSB er
   ax = a << (18-PREC);
   bx = b << (18-PREC);
 
-  uint9_t a0 = ax & 511;
-  uint9_t a1 = (ax >> 9) & 511;
+  uint9 a0 = ax & 511;
+  uint9 a1 = (ax >> 9) & 511;
 
-  uint9_t b0 = bx & 511;
-  uint9_t b1 = (bx >> 9) & 511;
+  uint9 b0 = bx & 511;
+  uint9 b1 = (bx >> 9) & 511;
 
   uint27 c = 0;
   uint3 i = 4; //one hot
