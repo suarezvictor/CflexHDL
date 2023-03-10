@@ -7,6 +7,7 @@ INCLUDE+=-I../../include -I../../src/ -I`pwd`
 CFLAGS+=-O3 -flto $(INCLUDE)
 GCCFLAGS=-std=c++20 -fcoroutines
 SIMULATOR_MAIN=simulator.cpp
+VERILATOR_OPT_FAST?=-O3
 
 all: run
 
