@@ -59,24 +59,6 @@ MODULE div16(const uint16& num, const uint16& den, uint16& ret) //FIXME: correct
 
 //typedef uint16 uint_div_width;
 
-/*
-#define DIV_ITERATION() \
-    R1 = (R << 1); \
-    add_clk(); \
-    if(num & mask) \
-      R = R1 | 1; \
-    else \
-      R = R1; \
-    add_clk(); \
-    RD = R - den; \
-    if ((RD >> 15) == 0) \
-    { \
-      R = RD; \
-      ret = ret | mask; \
-    } \
-    mask = mask >> 1;
-*/
-
 static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
 {
   uint16 RD = 0;
