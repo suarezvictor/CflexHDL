@@ -5,10 +5,9 @@
 // (C) 2020 Sylvain Lefebvre (original code, MIT LICENSE)
 // *https://github.com/sylefeb/Silice/blob/master/projects/vga_demo/vga_flyover3d.ice
 
-#include "cflexhdl.h"
 #include "vga_config.h"
 
-//#define USE_DIV_ALGORITHM
+#define USE_DIV_ALGORITHM
 #ifdef USE_DIV_ALGORITHM
 #include "div16.cc"
 #endif
@@ -35,7 +34,7 @@ public:
  void operator()(int16 n, int16 d)
  {
 #ifndef USE_DIV_ALGORITHM
-   _ret = n/d; //FAST
+   _ret = n/d; //native division is faster, but not much faster than the newton algorithm
 #else
    _div16(n, d, _ret);
 #endif

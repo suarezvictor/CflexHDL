@@ -84,11 +84,15 @@ def add_video_custom_generator(soc, name="video", phy=None, timings="800x600@60H
     # Video Timing Generator.
     soc.check_if_exists(f"{name}_vtg")
     vtg = VideoTimingGenerator(default_video_timings=timings)
-    vtg = ClockDomainsRenamer(clock_domain)(vtg)
+    if clock_domain != "sys":
+      #vtg = ClockDomainsRenamer(clock_domain)(vtg)
+      pass
     setattr(soc.submodules, f"{name}_vtg", vtg)
 
     graphics = GraphicsGenerator()
-    graphics = ClockDomainsRenamer(clock_domain)(graphics)
+    if clock_domain != "sys":
+      #graphics = ClockDomainsRenamer(clock_domain)(graphics)
+      pass
     setattr(soc.submodules, name, graphics)
 
     # Connect Video Timing Generator to GraphicsGenerator
@@ -144,9 +148,12 @@ class _CRG_arty(Module):
             pll.create_clkout(self.cd_hdmi,     video_clock, margin=1e-3)
             pll.create_clkout(self.cd_hdmi5x, 5*video_clock, margin=1e-3)
         else:
-            #self.clock_domains.cd_vga       = ClockDomain(reset_less=True)
-            self.clock_domains.cd_vga       = ClockDomain(reset_less=False) #TODO: chech why True brings errors
-            pll.create_clkout(self.cd_vga, video_clock, margin=1e-3)
+            if int(sys_clk_freq) == int(video_clock):
+              self.clock_domains.cd_vga = self.cd_sys
+            else:
+              #self.clock_domains.cd_vga       = ClockDomain(reset_less=True)
+              self.clock_domains.cd_vga       = ClockDomain(reset_less=False) #TODO: chech why True brings errors
+              pll.create_clkout(self.cd_vga, video_clock, margin=1e-3)
         platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
 
 
@@ -156,8 +163,13 @@ def build_arty(args, toolchain):
 		platform = board.Platform() #default
 	else:
 		platform = board.Platform(toolchain=toolchain) #"yosys+nextpnr" brings errors about usage of DSP48E1 (* operator) and of ODDR
+
+	if toolchain == "yosys+nextpnr":
+		#this is needed to avoid the unsupported clocked DSP48E1s
+		platform.toolchain._yosys_cmds.append("scratchpad -set xilinx_dsp.multonly 1")
+		pass
       
-	sys_clk_freq = int(100e6)
+	sys_clk_freq = int(25e6) #int(100e6)
 	soc = SoCCore(platform, sys_clk_freq, **soc_core_argdict(args))
 	soc.submodules.crg = _CRG_arty(platform, sys_clk_freq, False)
 
@@ -183,8 +195,9 @@ def build_arty(args, toolchain):
 			Subsignal("g", Pins("U12 V12 V10 V11")), #pmodc.0-3
 			Subsignal("b", Pins("J17 J18 K15 J15")), #pmodb.4-7
 			IOStandard("LVCMOS33"))])
-		soc.submodules.videophy = VideoGenericPHY_SDR(platform.request("vga"), clock_domain="vga")
-		add_video_custom_generator(soc, phy=soc.videophy, timings="640x480@60Hz", clock_domain="vga")
+		cd_vga = "vga" if soc.crg.cd_vga != soc.crg.cd_sys else "sys"
+		soc.submodules.videophy = VideoGenericPHY_SDR(platform.request("vga"), clock_domain=cd_vga)
+		add_video_custom_generator(soc, phy=soc.videophy, timings="640x480@60Hz", clock_domain=cd_vga	)
 	return soc #TODO: review code on pipelinec-graphics repo
 
 

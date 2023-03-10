@@ -7,13 +7,13 @@
 
 #include "cflexhdl.h"
 
-//#define _DEBUG
+#define _DEBUG
 
 #ifdef _DEBUG
 #define ITERATIONS 30
 #define DISPLAY printf
 #else
-#define ITERATIONS 100*1000*1000
+#define ITERATIONS 10*1000*1000
 #define DISPLAY(...)
 #endif
 
@@ -81,6 +81,10 @@ int main()
       ++clk_count;
 #endif
     }
+#else
+#ifndef CFLEX_VERILATOR
+      ++clk_count;
+#endif
 #endif
 #else
     result = v_result;

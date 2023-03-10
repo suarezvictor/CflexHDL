@@ -42,7 +42,7 @@ $(BUILD)/VM_arithmetic: $(BUILD)/top_instance.v $(SIMULATOR_MAIN)
 	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $(BUILD)/top_instance.v \
 	  --top-module M_arithmetic --exe $(SIMULATOR_MAIN) -CFLAGS -DCFLEX_VERILATOR \
 	  -CFLAGS -I`pwd` -CFLAGS -I../../../include -CFLAGS -I../../../src/ \
-	  -CFLAGS -DCFLEX_SIMULATION -CFLAGS -fcoroutines #-CFLAGS -DCFLEX_NO_COROUTINES
+	  -CFLAGS -DCFLEX_SIMULATION -CFLAGS -DCFLEX_NO_COROUTINES #-CFLAGS -fcoroutines
 
 	  
 	cd build && make OPT_FAST=$(VERILATOR_OPT_FAST) -f VM_arithmetic.mk #CXX=clang++-14 gcc is faster

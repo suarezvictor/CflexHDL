@@ -27,26 +27,13 @@ typedef int10 int10_t;
 
 #define always(...) 1
 #define wait_clk()
-#define add_clk() __sync_synchronize()
-#define pipeline_stage() __builtin_huge_vall()
+#define add_clk() __sync_synchronize() //special marker to paser to emit code
+#define pipeline_stage() __builtin_huge_vall() //special marker to paser to emit code
 #define MODULE void
 
 #else
-#define add_clk() wait_clk()
-#define pipeline_stage()
-
-#define always(...) ({wait_clk(); true;})
-
-#ifdef CFLEX_NO_COROUTINES
-#define MODULE void
-//wait_clk is custom defined
-#else
-
-#include "coro.h"
-#define wait_clk() {co_yield 0;}
 #include "moduledef.h"
-
-#endif
+#define pipeline_stage()
 
 #define CFLEX_INLINE __attribute__((always_inline))
 

@@ -9,7 +9,6 @@
 #include "sim_fb.h"
 
 #include "vga_config.h"
-#include "cflexhdl.h"
 
 
 fb_handle_t fb;
@@ -18,6 +17,7 @@ static uint32_t pixels[FRAME_HEIGHT][FRAME_WIDTH];
 
 
 #ifndef CFLEX_VERILATOR
+#include "cflexhdl.h"
 struct VM_vga_demo //mimics Verilator variables
 {
   uint10 out_pix_x, out_pix_y;
@@ -64,9 +64,9 @@ inline void wait_clk() //this is a fast shortcut if clocking all modules is disa
 	throw false;
 }
 #endif
+#include "build/compiled_simulator.cpp" //actual source to simulate
 #endif
 
-#include "build/compiled_simulator.cpp" //actual source to simulate
 
 void run()
 {

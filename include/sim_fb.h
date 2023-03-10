@@ -19,8 +19,14 @@ void fb_update(fb_handle_t *handle, const void *buf, size_t stride_bytes);
 void fb_deinit(fb_handle_t *handle);
 bool fb_should_quit(void);  
 
-extern "C" uint64_t SDL_GetPerformanceCounter(void);
-extern "C" uint64_t SDL_GetPerformanceFrequency(void);
+#ifdef __cplusplus
+#define EXTERN_C extern "C" 
+#else
+#define EXTERN_C
+#endif
+
+EXTERN_C uint64_t SDL_GetPerformanceCounter(void);
+EXTERN_C uint64_t SDL_GetPerformanceFrequency(void);
 inline uint64_t higres_ticks() { return SDL_GetPerformanceCounter(); }
 inline uint64_t higres_ticks_freq() { return SDL_GetPerformanceFrequency(); }
 

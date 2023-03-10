@@ -64,7 +64,7 @@ uint32 fixed16_div_aprox_32(uint16 N, const uint16& D0)
   return R4;
 }
 
-MODULE _div16(const uint16& num, const uint16& den, uint16& ret) //FIXME: correct parser/generator
+MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
 {
   uint32 r;
   r = fixed16_div_aprox_32(num, den);
