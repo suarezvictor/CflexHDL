@@ -23,7 +23,9 @@ struct Coroutine {
   Coroutine(coroutine_handle<promise_type> h): coro(h) { }
   ~Coroutine() { if(coro) coro.destroy(); }
   bool clock() { coro.resume(); return !coro.done(); }
+  void operator=(const Coroutine&) = delete;
 };
 
+#define module_update(lhs, rhs) { lhs.~Coroutine(); new(&lhs) Coroutine(rhs); }
 
 #endif //__CORO_H__

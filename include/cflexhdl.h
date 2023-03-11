@@ -4,6 +4,7 @@
 #define __CFLEXHDL_H__
 
 #include "silice_compat.h"
+#include "moduledef.h"
 
 //TODO: add missing widths
 typedef uint1 uint1_t;
@@ -23,21 +24,7 @@ typedef int10 int10_t;
 #define uintN(n) uintN_internal(n)
 
 
-#if !defined(CFLEX_SIMULATION)
-
-#define always(...) 1
-#define wait_clk()
-#define add_clk() __sync_synchronize() //special marker to paser to emit code
-#define pipeline_stage() __builtin_huge_vall() //special marker to paser to emit code
-#define MODULE void
-
-#else
-#include "moduledef.h"
-#define pipeline_stage()
-
 #define CFLEX_INLINE __attribute__((always_inline))
-
-#endif
 
 //#define wait_cond(cond) while(always() && (cond)==0)
 

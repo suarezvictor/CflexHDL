@@ -18,11 +18,9 @@ while(always()) { //clang 14 needs this to avoid internal compiler error
   //---- start bit --------------------------------
   tx_pin = 0; out_valid = 1; //start bit
 
-  while(clock_counter - t1 < 0)
-  {
-    wait_clk();
+  while(always() && clock_counter - t1 < 0)
     out_valid = 0;
-  }
+
   t1 = t1 + UART_CLKS_PER_BIT;
 
   //---- data bits -------------------------------
@@ -31,21 +29,15 @@ while(always()) { //clang 14 needs this to avoid internal compiler error
   {
     tx_pin = (data & mask) != 0; out_valid = 1;
 
-    while(clock_counter - t1 < 0)
-    {
-      wait_clk();
+    while(always() && clock_counter - t1 < 0)
       out_valid = 0;
-    }
     t1 = t1 + UART_CLKS_PER_BIT;
   }
 
   //---- stop bit -------------------------------
   tx_pin = 1; out_valid = 1;
-  while(clock_counter - t1 < 0)
-  {
-    wait_clk();
+  while(always() && clock_counter - t1 < 0)
     out_valid = 0;
-  }
 
 #if 0
 }
