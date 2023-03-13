@@ -1,16 +1,15 @@
 #include "cflexhdl.h"
 
 #ifndef UART_CLKS_PER_BIT
-#define UART_CLKS_PER_BIT 1//0000
+#define UART_CLKS_PER_BIT 10 //at least 10 for good verilator simulation
 #endif
 
 #define uart_tx _uart_tx
 
+//NOTE: clang 14 needs surounding the function body with while(always()) to avoid internal compiler error
+
 MODULE uart_tx(const uint8& data, uint1& tx_pin, uint1& out_valid, const int32& clock_counter)
 {
-#if 0
-while(always()) { //clang 14 needs this to avoid internal compiler error
-#endif
 
   int32 t1;
   t1 = clock_counter + UART_CLKS_PER_BIT;
@@ -38,10 +37,6 @@ while(always()) { //clang 14 needs this to avoid internal compiler error
   tx_pin = 1; out_valid = 1;
   while(always() && clock_counter - t1 < 0)
     out_valid = 0;
-
-#if 0
-}
-#endif
 }
 
 #if 0
