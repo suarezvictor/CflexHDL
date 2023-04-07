@@ -11,9 +11,9 @@ run: compile
 
 compile: $(BUILD)/compiled
 
-$(BUILD)/compiled: $(VGA_SRC) simulator.cpp vga_py4hw.cc
+$(BUILD)/compiled: $(VGA_SRC) simulator_graphics.cpp vga_py4hw.cc
 	mkdir -p $(BUILD)
-	g++ -DCFLEX_SIMULATION $(CFLAGS) $(SDL_CFLAGS) simulator.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
+	g++ -DCFLEX_SIMULATION $(CFLAGS) $(SDL_CFLAGS) simulator_graphics.cpp ../../src/sim_fb.c $(SDL_LIBS) -o $(BUILD)/compiled
 
 clean:
 	rm -Rf $(BUILD)

@@ -22,6 +22,7 @@ struct vga_demo
   uint8 r, g, b;
 } top_instance;
 #define top (&top_instance)
+uint64_t clk_count = 0;
 
 inline void render_pixel()
 {
@@ -63,6 +64,7 @@ inline void wait_clk()
   }
   if(!simulation_display())
 	throw false;
+  ++clk_count;
 }
 
 #include "vga_py4hw.cc" //generated source
@@ -84,7 +86,7 @@ int main()
     catch(...) {} //only exits by exception
     
 	float fps = float(framecount)*higres_ticks_freq()/(higres_ticks()-start_time);
-	printf("FPS %.1f, pixel clock %.1f MHz\n", fps, fps*FRAME_WIDTH*FRAME_HEIGHT*1e-6);
+	printf("FPS %.1f, pixel clock %.1f MHz\n", fps, fps*clk_count*1e-6);
 	fb_deinit(&fb);
 	return 0;
 }
