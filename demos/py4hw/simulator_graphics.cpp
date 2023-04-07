@@ -22,7 +22,7 @@ struct vga_demo
   uint8 r, g, b;
 } top_instance;
 #define top (&top_instance)
-uint64_t clk_count = 0;
+static uint64_t clk_count = 0;
 
 inline void render_pixel()
 {
@@ -35,9 +35,6 @@ inline void render_pixel()
 
 inline bool simulation_display()
 {
-  if(top->x != 0 || top->y != 0) //if not about to start
-    return true;
-
   if(fb_should_quit())
 	return false;
 
@@ -59,11 +56,16 @@ inline void wait_clk()
           ++top->y;
       }
       else
+      {
+        if(top->y != 0)
+        {
+          if(!simulation_display())
+              throw false;
+        }
         top->y = 0;
+      }
       top->x = 0;
   }
-  if(!simulation_display())
-	throw false;
   ++clk_count;
 }
 
@@ -85,8 +87,9 @@ int main()
     }
     catch(...) {} //only exits by exception
     
-	float fps = float(framecount)*higres_ticks_freq()/(higres_ticks()-start_time);
-	printf("FPS %.1f, pixel clock %.1f MHz\n", fps, fps*clk_count*1e-6);
+    float dt = (higres_ticks()-start_time)/float(higres_ticks_freq());
+	float fps = framecount/dt;
+	printf("time %.1fs, FPS %.1f, clock %.1f MHz\n", dt, fps, clk_count*1.e-6/dt);
 	fb_deinit(&fb);
 	return 0;
 }
