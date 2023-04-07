@@ -1,0 +1,21 @@
+MODULE_SRC?=basic_py4hw.cc
+INCLUDE+=-I../../include -I../../src/ -I`pwd` 
+CFLAGS+=-O3 -flto -DCFLEX_NO_COROUTINES $(INCLUDE)
+SIMULATOR_MAIN?=simulator_basic.cpp
+BUILD=build
+
+all: run
+
+run: compile
+	$(BUILD)/compiled
+
+compile: $(BUILD)/compiled
+
+$(BUILD)/compiled: $(MODULE_SRC) $(SIMULATOR_MAIN)
+	mkdir -p $(BUILD)
+	g++ -DCFLEX_SIMULATION $(CFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled 
+
+clean:
+	rm -Rf build
+
+
