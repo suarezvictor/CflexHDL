@@ -39,4 +39,22 @@ typedef int10 int10_t;
 #endif
 
 
+template<class T>
+class reg //delayed assigment
+{
+  T& d;
+  T q;
+  reg() = delete;
+  reg(reg&) = delete;
+public:
+  reg(reg&&) = default;
+  reg(T& _d) : d(_d), q(_d) {}
+  ~reg() { d = q; } //copy data on destruction
+  operator T() const { return d; }
+  void operator = (T next) { q = next; }
+};
+
+template<class T> reg<T> sync(T& r) { return r; }
+
+
 #endif //__SILICE_COMPAT_H__
