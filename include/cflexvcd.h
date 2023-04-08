@@ -37,7 +37,7 @@ public:
   }
   
   template<class T>
-  void add_signal(const char *name, const T& signal, int width=1)
+  void add_signal(const char *name, const T& signal, uint8_t width=1)
   {
     uint8_t id = '$' + signals.size();
     signals.push_back(vcd_signal{name, id, (uint8_t*)&signal, width});
