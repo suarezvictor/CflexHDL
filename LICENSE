@@ -1,7 +1,3 @@
-LICENSE:
-
-As seen on individual source files. The files without containing a reference to a specific license are 
-not open source yet. Downloading and running any such sources is permitted provided that the only objective is to review the tool capabilities in its current state. Open source release is planned once the tool is more mature.
-
-NO WARRANTY OF ANY KIND, IMPLIED OR EXPRESS.
+GNU Affero General Public License (AGPL)
+https://www.gnu.org/licenses/agpl-3.0.html
 
