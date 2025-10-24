@@ -15,6 +15,9 @@ class CFlexGenerator:
         self.ind = self.ind[:-len(self.indentation)]
         return self.ind
 
+    def generate_any_expr(self, childs, joinexpr=""): #catch all generator
+        return self.generate_expr(childs, joinexpr);
+
 class CFlexBasicCPPGenerator(CFlexGenerator):
     def generate_expr(self, childs, joinexpr=""):
         return joinexpr.join(childs)
@@ -118,7 +121,7 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
         t = self.unindent()
         return "{\n" + s + "\n" + t + "}"
 
-    def generate_assignment_operator(self, lhs, op, rhs):
+    def generate_assignment_operator(self, lhs, op, rhs, ltyp):
         return lhs + " " + op + " " + rhs + ";" # op: =, &=, >>=, etc
 
     def generate_call(self, name, argsexpr):
@@ -145,4 +148,10 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
     def generate_for(self, for1, for2, for3, forbody):
         s = "for(" + for1 + ";" + for2 + ";" + for3 + ")"
         return s + forbody
+
+    def generate_pointer_write(self, ptr, rhs):
+        return "\n" + self.ind + "bus_write(" + ptr + ", " + rhs + ");\n"
+
+    def generate_pointer_read(self, lhs, ptr):
+        return "\n" + self.ind + "lhs = bus_read(" + rhs + ");\n"
 

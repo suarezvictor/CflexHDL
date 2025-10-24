@@ -78,13 +78,17 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
               
         elif stmtexpr is not None:
             algo_typ = "algorithm"
-            s = "(" + self.generate_expr(argsexpr, ",") + "\n)"
+            args = [arg for arg in argsexpr]
+            s = "(" + self.generate_expr(args, ",") + "\n)"
             if name[0] != '_':
               s += " <autorun>"
             else:
               name = name[1:]
         
         self.functions[name] = name
+        if len(args) and args[0].split()[-1] == "bus_cyc":
+        	prolog = "bus_cyc = 0; bus_stb = 0; bus_sel = 65535; //selects up to 16 bytes"
+        	stmtexpr = "\n{ " + prolog + stmtexpr + "}"
         s += self.generate_expr(stmtexpr)
         return algo_typ + " "  + name + s + "\n\n"
 
@@ -109,11 +113,14 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         t = self.unindent()
         return "\n" + t + "{" + s +"\n"+t + "}"
 
-    def generate_assignment_operator(self, lhs, op, rhs):
+    def generate_assignment_operator(self, lhs, op, rhs, ltyp):
         callname = self.callinstance(rhs)
         if callname is not None:
             lhs = "(" + lhs + ")"
-        return "\n" + self.ind + lhs + " " + op + " " + rhs + ";" # op: =, &=, >>=, etc
+        expr = "\n" + self.ind + lhs + " " + op + " " + rhs + ";" # op: =, &=, >>=, etc
+        if ltyp[-1] == "*" and not ltyp.startswith("const"): #write pointer
+        	expr = "\n{" + expr[1:] + f" bus_adr_w = {lhs};" + "} // " + ltyp
+        return expr
 
     #FIXME: move to generic class
     def generate_while(self, cond, expr):
@@ -150,7 +157,7 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         #return "\n++:" #insert clock statement FIXME: check yield() statement/macro usage
 
     def generate_comment(self, kind, comment):
-        #return "#"+kind+"#"+comment
+        #return "//"+kind+"\n//"+comment+"\n"
         return ""
 
     def generate_case_label(self, caselabel, casestmt):
@@ -168,6 +175,24 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         else:
           s += " { //for" + forbody + " " + for3 + ";}"
         return s
+
+    def generate_pointer_read(self, lhs, ptr):
+        bus = "bus"
+        expr = "\n" + self.generate_stmt(f"{bus}_adr_r = {ptr};")
+        expr += "\n" + self.generate_stmt(f"{bus}_we = 0; {bus}_stb = 1; {bus}_cyc = 1; ")
+        expr += "\n" + self.generate_stmt(f"if(!({bus}_stb && {bus}_r_ack))" + " { " + f"while(!({bus}_stb && {bus}_r_ack))" + "{ } }")
+        expr += "\n" + self.generate_stmt(f"{lhs} = {bus}_dat_r;")
+        expr += "\n" + self.generate_stmt(f"{bus}_stb = 0;")
+        return expr;
+
+    def generate_pointer_write(self, ptr, rhs):
+        bus = "bus"
+        expr = "\n" + self.generate_stmt(f"{bus}_adr_w = {ptr};")
+        expr += "\n" + self.generate_stmt(f"{bus}_dat_w = {rhs};")
+        expr += "\n" + self.generate_stmt(f"{bus}_we = 1; {bus}_stb = 1; {bus}_cyc = 1;") 
+        expr += "\n" + self.generate_stmt(f"if(!({bus}_stb && {bus}_w_ack))" + " { " + f"while(!({bus}_stb && {bus}_w_ack))" + "{ } }")
+        expr += "\n" + self.generate_stmt(f"{bus}_stb = 0; {bus}_cyc = 0;")+"\n"
+        return expr;
 
 from clang.cindex import CursorKind
 
@@ -196,6 +221,9 @@ class CFlexClangParserSilice(CFlexClangParser):
             if c.type.kind == TypeKind.LVALUEREFERENCE:
                 typedeftyp = c.type.get_pointee().get_declaration()
                 ref = " &"
+            elif c.type.kind == TypeKind.POINTER:
+                typedeftyp = c.type.get_pointee().get_declaration()
+                return "uint$addr_size$" #pointee is typedeftyp.spelling
             else:
                 ref = ""
                 typedeftyp = c.type.get_declaration()
