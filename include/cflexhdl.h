@@ -19,6 +19,7 @@ typedef uint16 uint16_t;
 typedef uint25 uint25_t;
 typedef uint32 uint32_t;
 
+typedef int8 int8_t;
 typedef int10 int10_t;
 #define uintN_internal(n) uint##n
 #define uintN(n) uintN_internal(n)
@@ -30,12 +31,12 @@ typedef int10 int10_t;
 
 #define bitslice(B, E, n) (((n) >> (E)) & ((1 << ((B)-(E)+1))-1))
 
-#ifndef promote_u64
-#define promote_u64(x) (x) //just needed if compiled (like 32-bit multiplication with 64-bit output)
-#endif
-
-#ifndef promote_u128
-#define promote_u128(x) (x) //just needed if compiled (like 32-bit multiplication with 64-bit output)
+#ifdef CFLEX_PARSER
+//just needed if compiled (like 32-bit multiplication with 64-bit output)
+#define promote_u64(x) (x)
+#define promote_u128(x) (x)
+#else
+#define promote_u64(x) uint64(x)
 #endif
 
 

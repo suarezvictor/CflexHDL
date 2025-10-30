@@ -8,8 +8,6 @@ union fp32_t {
 };
 #endif
 
-#define _fp32_div _fp32
-
 // ------------------------
 // Multiplication
 // ------------------------
