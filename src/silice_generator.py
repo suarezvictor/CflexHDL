@@ -20,6 +20,18 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         super().__init__(**kwargs)        
         self.functions = {}
 
+    def generate_literal(self, value, typ):
+        if value[-1].lower() == "u": value = value[:-1] #typ specifies if unsigned or signed
+        
+        if value.lower().startswith("0x"):
+            value = value[2:]
+            bits = len(value) * 4
+            return f"{bits}h{value}"
+
+        if value[0]=='-':
+          return f"__unsigned({value})" if typ.startswith("unsigned") else f"__signed({value})"
+        return value
+
     def callinstance(self, expr): #FIXME: this detects a call by string
         index = expr.find("(")
         if index == -1:
@@ -109,7 +121,7 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
 
     def generate_compound_stmt(self, stmtexpr):
         t = self.indent()
-        s = self.generate_expr(stmtexpr)
+        s = self.generate_expr(stmtexpr) #FIXME: gives errors instancing structs
         t = self.unindent()
         return "\n" + t + "{" + s +"\n"+t + "}"
 
