@@ -1,14 +1,15 @@
 #!/usr/bin/python3
 """
-Parser/Generator to convert C files to Silice files (.ice)
-(C) 2022 Victor Suarez Rovere <suarezvictor@gmail.com>
+Parser/Generator to convert C files to Silice files (.si)
+(C) 2022-2025 Victor Suarez Rovere <suarezvictor@gmail.com>
 
 """
 
 import sys
+import struct
 sys.path.append("../../cflexparser")
 
-from clangparser import CFlexClangParser, CFlexBasicCPPGenerator, concat_tokens, mangle_type, remove_type_qualifiers
+from clangparser import CFlexClangParser, CFlexBasicCPPGenerator, concat_tokens, mangle_type, remove_type_qualifiers, recurse_unexposed
 from clang.cindex import TypeKind
 
 def has_type_qualifier(typ, qualifier): #FIXME: move to clangparser
@@ -21,6 +22,9 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         self.functions = {}
 
     def generate_literal(self, value, typ):
+        if typ == "float":
+            if value[-1] == 'f': value=value[:-1]
+            return "32h" + struct.pack("!f", float(value)).hex() + "/*" + value + "*/"
         if value[-1].lower() == "u": value = value[:-1] #typ specifies if unsigned or signed
         
         if value.lower().startswith("0x"):
@@ -79,13 +83,14 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         print("...PROCESSING FUNCTION", name, file=sys.stderr)
         s = ""
         
-        if rettyp != "void": #circuitry
-            algo_typ = "circuitry"
-            args = ["output result"]
+        if rettyp != "void": 
+            is_circuitry = True #check if template
+            algo_typ = "circuitry" if is_circuitry else "subroutine"
+            args = ["output " + ("" if is_circuitry else rettyp + " ") + "result"]
             for arg in argsexpr:
               argw = arg.split()
               if argw[0] == "input":
-                args += ["input " + " ".join(argw[2:])] #skips arg type (2nd word)
+                args += ["input " + " ".join(argw[1+is_circuitry:])] #circuitry should skip arg type
             s = "(" + (", ".join(args)) + ")"
               
         elif stmtexpr is not None:
@@ -101,7 +106,12 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         if len(args) and args[0].split()[-1] == "bus_cyc":
         	prolog = "bus_cyc = 0; bus_stb = 0; bus_sel = 65535; //selects up to 16 bytes"
         	stmtexpr = "\n{ " + prolog + stmtexpr + "}"
-        s += self.generate_expr(stmtexpr)
+
+        preamble = self.pop_preamble_statements()
+        if len(preamble):
+        	s += "{" + preamble + "\n" + self.generate_expr(stmtexpr) + "}"
+        else:
+	        s += self.generate_expr(stmtexpr)
         return algo_typ + " "  + name + s + "\n\n"
 
     def generate_param_decl(self, decltyp, name):
@@ -128,11 +138,23 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
     def generate_assignment_operator(self, lhs, op, rhs, ltyp):
         callname = self.callinstance(rhs)
         if callname is not None:
+            algoinstance = self.create_var_name(callname);
+            self.insert_preamble_statement(callname + " " + algoinstance + ";")
+            return "(" + lhs + ") <- " + algoinstance + " <- "+ rhs[len(callname):] + ";"
+
+            is_subroutine = False #FIXME: decide if circuitry, subroutine or algorithms
             lhs = "(" + lhs + ")"
+            if is_subroutine:
+            	rhs = callname + " <- " + rhs[len(callname):]
+            	op = " <- "
+
         expr = "\n" + self.ind + lhs + " " + op + " " + rhs + ";" # op: =, &=, >>=, etc
         if ltyp[-1] == "*" and not ltyp.startswith("const"): #write pointer
         	expr = "\n{" + expr[1:] + f" bus_adr_w = {lhs};" + "} // " + ltyp
         return expr
+
+    def generate_overloaded_assignment_operator(self, lhs, op, rhs, ltyp):
+        return self.generate_assignment_operator(lhs, op, rhs, ltyp)
 
     #FIXME: move to generic class
     def generate_while(self, cond, expr):
@@ -149,13 +171,44 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         self.unindent()
         return s + "(\n" + bindings + "\n" + self.ind + ");"
 
-    def generate_var_decl(self, decltyp, name, has_value, valueexpr):
+    def generate_var_decl(self, decltyp, name, has_value, valueexpr, rtyp, storage):
+        #FIXME: move this logic to base
+        if rtyp == "float" and (decltyp.startswith("int") or decltyp.startswith("uint")): #FIXME: checoverloaded types
+           r = [x for x in valueexpr]
+           ovname = rtyp + "_to_int"
+           value = self.generate_overloaded_call(ovname, r[1:], "int")
+        else:
+           value = self.generate_expr(valueexpr)
+        if decltyp == "float" : decltyp = "uint32" #fixme: use map_type
         s = "\n" + self.ind + decltyp + " " + name
-        value =  self.generate_expr(valueexpr) if has_value else "uninitialized"
+        value =  value if has_value else "uninitialized"
         return s + " = " + value + ";"
 
-    def generate_call_instance(self, name, childrepr):
-        return "\n" + self.ind + name + " <- " + self.generate_call("", childrepr)+";"
+    def generate_call_instance(self, name, childrepr, with_outarg=False):
+        #FIXME: determine inputs and outputs
+
+        if with_outarg:
+          algoinstance = self.create_var_name(name);
+          self.insert_preamble_statement(name + " " + algoinstance + ";")
+          childs = [x for x in childrepr]
+          inargs = childs[:-1]
+          outargs = [childs[-1]]
+          return self.ind + self.generate_call("", outargs) + " <- " + algoinstance + " <- " + self.generate_call("", inargs)+";"
+
+        return self.ind + name + " <- " + self.generate_call("", childrepr)+";"
+        
+
+    def generate_overloaded_call(self, name, argsexpr, typ):
+        algoinstance = self.create_var_name(name);
+        self.insert_preamble_statement(name + " " + algoinstance + ";")
+        if typ == "float": typ = "uint32"
+        if typ == "int": typ = "int32"
+        if typ == "bool": typ = "uint1"
+        var = self.create_var_name()
+        self.insert_prev_statement(typ + " " + var + " = uninitialized;")
+        call = self.generate_call_instance(algoinstance, argsexpr)
+        self.insert_prev_statement("(" + var + ") <- " + call.strip(), var)
+        return var
 
     def generate_if_stmt(self, cond, then_stmt, else_stmt):
         s = "\n" + self.ind + "if(" + cond + ")" + self.adjust_noncompund_statement(then_stmt)
@@ -205,6 +258,15 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         expr += "\n" + self.generate_stmt(f"if(!({bus}_stb && {bus}_w_ack))" + " { " + f"while(!({bus}_stb && {bus}_w_ack))" + "{ } }")
         expr += "\n" + self.generate_stmt(f"{bus}_stb = 0; {bus}_cyc = 0;")+"\n"
         return expr;
+
+    def generate_unexposed_expr(self, expr, typ):
+        x = ""
+        if False: #typ.startswith("const "):
+          const = "const"
+          typ = typ[6:]
+        #if True: #typ in ["float", "double"]:	
+        #	return "/*" + typ + "*/(" + self.generate_expr(expr) + ")"
+        return self.generate_expr(expr)
 
 from clang.cindex import CursorKind
 
@@ -314,6 +376,7 @@ class CFlexClangParserSilice(CFlexClangParser):
     def onCALL_EXPR(self, c, childs, childrepr, tokens):
         # if len(childs) == 0: #no real calls
         #    return None
+
         name = c.spelling
         if name == "__sync_synchronize":
             return "\n++:" # add clock
@@ -323,10 +386,11 @@ class CFlexClangParserSilice(CFlexClangParser):
         if name == "operator()":
             name = next(childrepr)
             next(childrepr)
-            return self.generator.generate_call_instance(name, childrepr)
+            return "/*CALL-op*/"+self.generator.generate_call_instance(name, childrepr)
 
         next(childrepr)
-        return self.generator.generate_call(name, childrepr)
+        if name[0]=="_": name=name[1:]
+        return self.generator.generate_call_instance(name, childrepr, True)
 
     def onVAR_DECL(self, c, childs, childrepr, tokens):
 #CursorKind.CONSTRUCTOR#	//10.4[7] CursorKind.CONSTRUCTOR void (uint_div_width &, const uint16 &)  line 40:2 "div16" div16/(/uint_div_width/&/r/,/const/uint16/&/k/)/:/ret/(/r/)
@@ -367,7 +431,8 @@ class CFlexClangParserSilice(CFlexClangParser):
             return self.generator.generate_module_instance(decltyp, name, instanceargs)
         has_value = not self.empty_childs(childs)
         valueexpr = childrepr
-        return self.generator.generate_var_decl(decltyp, name, has_value, valueexpr)
+        rtyp = recurse_unexposed(childs[1]).type.spelling if len(childs)>1 else None
+        return self.generator.generate_var_decl(decltyp, name, has_value, valueexpr, rtyp, "")
 
 
 #USAGE: silice_generator.py source.c [CFLAGS]

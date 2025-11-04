@@ -4,12 +4,13 @@
 #make VGA_SRC=pergola_vga_rtlil.cc XILINXTOOLCHAIN=yosys+nextpnr clean arty load
 #make VGA_SRC=litex_vga.py.cc clean verilator
 
+VGA_SRC?=mandel_vga.cc
 #VGA_SRC?=pattern_gen.cc
-VGA_SRC?=vga_flyover3d.cc
+#VGA_SRC?=vga_flyover3d.cc
 #VGA_SRC?=vga_msponge.cc
 MIGEN_VGA?=pergola_vga.py
 GENERATOR?=../../src/silice_generator.py
-PARSER=../../cflexparser/clangparser.so
+PARSER=../../cflexparser/clangparser.py
 MIGEN2C=../../migen2cflexhdl/migen2cflexhdl.py
 BUILD?=build
 BOARD?=arty
@@ -50,10 +51,11 @@ $(BUILD)/migen_vga.cc: migen/*.py $(MIGEN2C)
 	cp $(BUILD)/migen_vga.cc $(MIGEN_VGA).cc
 
 $(BUILD)/top_instance.cpp: $(VGA_SRC) ../../src/vga.cc $(BUILD)/div16.ice $(PARSER)
-	cpp $(INCLUDE) -E -include $(VGA_SRC) ../../src/vga.cc -o $(BUILD)/top_instance.cpp
+	cpp $(INCLUDE) -DCFLEX_PARSER -E -include $(VGA_SRC) ../../src/vga.cc -o $(BUILD)/top_instance.cpp
 	
 $(BUILD)/top_instance.ice: $(BUILD)/top_instance.cpp
-	cat $(BUILD)/div16.ice > $(BUILD)/top_instance.ice #FIXME: forced include
+	#cat $(BUILD)/div16.ice > $(BUILD)/top_instance.ice #FIXME: forced include
+	echo > $(BUILD)/top_instance.ice
 	$(GENERATOR) $(BUILD)/top_instance.cpp $(CFLAGS)>> $(BUILD)/top_instance.ice
 	cat top_glue.ice >> $(BUILD)/top_instance.ice
 	
@@ -92,9 +94,6 @@ $(BUILD)/VM_vga_demo: $(BUILD)/top_instance.v simulator_main.cpp $(BUILD)/compil
 	  -CFLAGS $(shell sdl2-config --cflags) -LDFLAGS $(shell sdl2-config --libs) \
 	  -CFLAGS -DCFLEX_NO_COROUTINES #-fcoroutines
 	cd build && make OPT_FAST="-O3" -f VM_vga_demo.mk
-
-$(PARSER):
-	cd ../../cflexparser && make
 
 clean:
 	rm -Rf build

@@ -1,5 +1,5 @@
 SHELL=bash
-MODULE_SRC?=../../src/fp32.cc
+MODULE_SRC?=mandel_fp32.cc
 GENERATOR?=../../src/silice_generator.py
 PARSER=../../cflexparser/clangparser.py
 BUILD?=build
@@ -11,7 +11,8 @@ SIMULATOR_MAIN=simulator.cpp
 VERILATOR_OPT_FAST?=-O3
 
 #select FP32 core to test
-FP32?=_fp32_div
+#FP32?=_fp32_div
+FP32?=_mandel
 
 all: run
 
@@ -23,11 +24,12 @@ compile: $(BUILD)/compiled
 $(BUILD)/compiled: $(MODULE_SRC) $(SIMULATOR_MAIN)
 	mkdir -p $(BUILD)
 	#g++ -DCFLEX_SIMULATION $(CFLAGS) $(GCCFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled 
-	clang++-17 -DCFLEX_SIMULATION $(CFLAGS) $(CLANGFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled #clang is faster
+	clang++-17 -DCFLEX_SIMULATION -D$(FP32)=_fp32 $(CFLAGS) $(CLANGFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled #clang is faster
 	#objdump -D build/compiled > build/compiled.S
 
 test:
-	g++ -I../../include -o fp32 ../../src/fp32.cc && ./fp32
+	g++ -I../../include -o fp32 -D$(FP32)=_fp32 $(MODULE_SRC)
+	./fp32
 
 verilog: $(BUILD)/top_instance.v
 

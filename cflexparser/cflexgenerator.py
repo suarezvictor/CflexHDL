@@ -6,7 +6,14 @@ class CFlexGenerator:
     def __init__(self, indentation="  "):
         self.ind = ""
         self.indentation = indentation
+        self.prev_statements = []
+        self.preamble_statements = []
+        self.var_count = 0
 
+    def create_var_name(self, prefix="var"):
+        self.var_count += 1
+        return f"{prefix}{self.var_count}"
+    
     def indent(self):
         self.ind += self.indentation
         return self.ind
@@ -17,10 +24,30 @@ class CFlexGenerator:
 
     def generate_any_expr(self, childs, joinexpr=""): #catch all generator
         return self.generate_expr(childs, joinexpr);
+        
+    def insert_prev_statement(self, stmt, var=None):
+        self.prev_statements += [("\n"+self.generate_stmt(stmt), var)]
 
-class CFlexBasicCPPGenerator(CFlexGenerator):
+    def pop_prev_statements(self):
+        if not self.prev_statements:
+        	return "", None 
+        prev = "".join([x for (x, y) in self.prev_statements])
+        var = self.prev_statements[-1][1]
+        self.prev_statements = []
+        return prev, var
+        
+    def insert_preamble_statement(self, stmt):
+        self.preamble_statements += ["\n"+self.generate_stmt(stmt)]
+    
+    def pop_preamble_statements(self):
+        s = "".join(self.preamble_statements)
+        self.preamble_statements = []
+        return s
+
     def generate_expr(self, childs, joinexpr=""):
         return joinexpr.join(childs)
+
+class CFlexBasicCPPGenerator(CFlexGenerator):
 
     def generate_comment(self, kind, comment):
         return comment
@@ -123,11 +150,17 @@ class CFlexBasicCPPGenerator(CFlexGenerator):
 
     def generate_assignment_operator(self, lhs, op, rhs, ltyp):
         return lhs + " " + op + " " + rhs + ";" # op: =, &=, >>=, etc
+        
+    def generate_overloaded_assignment_operator(self, lhs, op, rhs, ltyp):
+        return self.generate_assignment_operator(lhs, op, rhs, ltyp)
 
     def generate_call(self, name, argsexpr):
         return name + "(" + self.generate_expr(argsexpr, ", ") + ")"
+        
+    def generate_overloaded_call(self, name, argsexpr, typ):
+        return self.generate_call(name, argsexpr)
 
-    def generate_unexposed_expr(self, expr):
+    def generate_unexposed_expr(self, expr, typ):
         pass
 
     def generate_decl_stmt(self, expr):

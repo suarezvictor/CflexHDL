@@ -11,7 +11,7 @@ union fp32_t {
 // ------------------------
 // Multiplication
 // ------------------------
-MODULE _fp32_mul(const uint32& ua, const uint32& ub, uint32& result)
+MODULE _float_mul(const uint32& ua, const uint32& ub, uint32& result)
 {
 	union {
 		uint32 a_u;
@@ -52,9 +52,9 @@ MODULE _fp32_mul(const uint32& ua, const uint32& ub, uint32& result)
 }
 
 // ------------------------
-// Addition
+// Addition / Substraction
 // ------------------------
-MODULE _fp32_add(const uint32& ua, const uint32& ub, uint32& result)
+MODULE _float_add(const uint32& ua, const uint32& ub, uint32& result)
 {
 	union {
 		uint32 a_u;
@@ -158,10 +158,15 @@ MODULE _fp32_add(const uint32& ua, const uint32& ub, uint32& result)
     }
 }
 
+MODULE _float_sub(const uint32& ua, const uint32& ub, uint32& result)
+{
+  _float_add(ua, ub^0x80000000, result); //just change sign of b
+}
+
 // ------------------------
 // Division
 // ------------------------
-MODULE _fp32_div(const uint32& ua, const uint32& ub, uint32& result)
+MODULE _float_div(const uint32& ua, const uint32& ub, uint32& result)
 {
 	union {
 		uint32 a_u;
@@ -241,6 +246,100 @@ MODULE _fp32_div(const uint32& ua, const uint32& ub, uint32& result)
 }
 
 // ------------------------
+// Comparison
+// ------------------------
+//FIXME: this requires syntax support in parser/generator
+int32 float_monotonic(uint32 a) { return (a & 0x80000000) ? (-a) ^ 0x80000000 : a; }
+
+MODULE _float_lt(const uint32& ua, const uint32& ub, uint1& result)
+{
+#if 1
+  int32 ai = (ua & 0x80000000) ? (-ua) ^ 0x80000000 : ua;
+  int32 bi = (ub & 0x80000000) ? (-ub) ^ 0x80000000 : ub;
+#else
+  int32 ai = float_monotonic(ua);
+  int32 bi = float_monotonic(ub);
+#endif
+  result = ua < ub;
+}
+
+
+// ------------------------
+// Float/Integer conversion
+// ------------------------
+
+MODULE _float_to_int(const uint32& a, int32& result)
+{
+	union {
+		uint32 i_u;
+		struct { uint32 frac:23; uint32 exp:8; uint32 sign:1; } i;
+	};
+	
+	i_u = a;
+
+    int8 shift = i.exp - 127 - 23;
+
+    if (shift < -23)
+    {
+        result = 0;
+    }
+    else
+    {
+       uint32 mant = i.frac | (1 << 23);
+       int32 value;
+
+       value = (shift >= 0) ? mant << shift : mant >> -shift; //FIXME: this is too slow in logic
+
+       if(i.sign)
+         result = 0-value; //FIXME: support unary operator
+       else
+         result = value;
+    }
+}
+
+MODULE _float_int(const int32& i, uint32& result)
+{
+	union {
+		uint32 r_u;
+		struct { uint32 frac:23; uint32 exp:8; uint32 sign:1; } r;
+	};
+
+	uint32 a = i < 0 ? -i : i;
+#if 1
+	//TODO: this has duplicated code to count zeros
+	uint32 mant0 = a;
+	uint32 mant1, mant2, mant3, mant4, mant5;
+	int8 exp0 = 31;
+	int8 exp1, exp2, exp3, exp4, exp5;
+	if ((mant0 & 0xFFFF0000u) == 0) { exp1 = exp0 - 16; mant1 = mant0 << 16; } else { mant1 = mant0; exp1 = exp0; }
+	if ((mant1 & 0xFF000000u) == 0) { exp2 = exp1 -  8; mant2 = mant1 <<  8; } else { mant2 = mant1; exp2 = exp1; }
+	if ((mant2 & 0xF0000000u) == 0) { exp3 = exp2 -  4; mant3 = mant2 <<  4; } else { mant3 = mant2; exp3 = exp2; }
+	if ((mant3 & 0xC0000000u) == 0) { exp4 = exp3 -  2; mant4 = mant3 <<  2; } else { mant4 = mant3; exp4 = exp3; }
+	if ((mant4 & 0x80000000u) == 0) { exp5 = exp4 -  1; mant5 = mant4 <<  1; } else { mant5 = mant4; exp5 = exp4; }
+#else
+    int8 z = __builtin_clz(a);
+    int8 exp5 = 31 - z;
+    uint32 mant5 = (a << z);
+#endif
+	r.sign = i < 0;
+	r.exp = i == 0 ? 0 : exp5 + 127;
+	r.frac = mant5 >> 8;
+	
+	result = r_u;
+}
+
+
+// ------------------------
+// Misc functions
+// ------------------------
+MODULE _float_mul_int(const uint32& ua, const int32& b, uint32& result)
+{
+   uint32 ub;
+   _float_int(b, ub);
+   _float_mul(ua, ub, result);
+}
+
+// ------------------------
 // Test helpers
 // ------------------------
 #ifndef CFLEX_SIMULATION
@@ -266,16 +365,20 @@ void test_random_operations(int count, float eps) {
 
         uint32 a = *reinterpret_cast<uint32*>(&a_f);
         uint32 b = *reinterpret_cast<uint32*>(&b_f);
+        int32 a_int = i < 2 ? 0 : int32(a) >> 11;
 
         uint32 r_mul, r_add, r_div;
+        uint32 r_int;
 
-        _fp32_mul(a, b, r_mul);
-        _fp32_add(a, b, r_add);
-        _fp32_div(a, b, r_div);
+        _float_mul(a, b, r_mul);
+        _float_add(a, b, r_add);
+        _float_div(a, b, r_div);
+        _float_int(a_int, r_int);
 
         float f_mul = *reinterpret_cast<float*>(&r_mul);
         float f_add = *reinterpret_cast<float*>(&r_add);
         float f_div = *reinterpret_cast<float*>(&r_div);
+        float f_int = *reinterpret_cast<float*>(&r_int);
 
         if (fabs(f_mul - (a_f*b_f)) > eps)
             std::cout << "ERROR mul: " << a_f << " * " << b_f << " = " << f_mul
@@ -288,6 +391,10 @@ void test_random_operations(int count, float eps) {
         if (fabs(f_div - (a_f/b_f)) > eps)
             std::cout << "ERROR div: " << a_f << " / " << b_f << " = " << f_div
                       << " (expected " << a_f/b_f << ")\n";
+
+        if (a_int != f_int)
+            std::cout << "ERROR a " << a_int << " f_int " << f_int << ")\n";
+
     }
 }
 

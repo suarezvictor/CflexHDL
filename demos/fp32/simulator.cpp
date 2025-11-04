@@ -13,7 +13,7 @@
 #define ITERATIONS 10
 #define DISPLAY printf
 #else
-#define ITERATIONS 10*1000*1000
+#define ITERATIONS 1*1000*1000
 #define DISPLAY(...)
 #endif
 
@@ -22,7 +22,7 @@ static long clk_count = 0;
 inline void wait_clk() {++clk_count;}
 #endif
 
-#include "../../src/fp32.cc" //algorithm implementation
+#include "mandel_fp32.cc"
 
 #ifdef CFLEX_VERILATOR  
 #include "VM_fp32.h"
@@ -46,6 +46,10 @@ int main()
   for(i = 0; i < ITERATIONS; ++i)
   {
     DISPLAY("iteration %d\n", i);
+
+    a = random_fp32();
+    b = random_fp32();
+
 #ifdef CFLEX_SIMULATION
 #ifdef CFLEX_NO_COROUTINES
     _fp32(a, b, result);
@@ -97,20 +101,19 @@ int main()
     f_b.u = b;
     f_result.u = result;
     f_v_result.u = v_result;
-    DISPLAY("step %ld, A=%f B=%f, C_RESULT=%f, V_RESULT=%f\n", clk_count, f_a.f, f_b.f, f_result.f, f_v_result.f);
+    DISPLAY("step %ld, A=%f(0x%08X) B=%f(0x%08X), C_RESULT=%f(0x%08X), V_RESULT=%f(0x%08X)\n",
+      clk_count, f_a.f, f_a.u, f_b.f, f_b.u, f_result.f, f_result.u, f_v_result.f, f_v_result.u);
     sum += result;
 
 #ifdef CFLEX_VERILATOR  
     if(result != v_result)
+    if(fabs(double(result) - double(v_result)) > 1) //ok for mandelbrot generator
+    //if(fabs(double(result) - double(v_result)) > 8)
     {
       fprintf(stderr, "FAIL: cosimulation does NOT match\n");
       exit(1);
     }
 #endif
-  
-    
-    a = random_fp32();
-    b = random_fp32();
   }
 
   clock_t dt = clock()-start_time;

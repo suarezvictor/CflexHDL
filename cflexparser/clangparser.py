@@ -60,6 +60,7 @@ class CFlexClangParser:
         self.overloaded_operators = True
         self.no_parse_cursors = False #only comments
         self.reverse_typedef_map = {}
+        self.cursor_cache = {}
 
     def empty_childs(self, childs):
         prev_comments_enabled = self.comments_enabled
@@ -158,10 +159,26 @@ class CFlexClangParser:
             )
             #comment = "\t\t\t//" + linecol + "\n"
 
+        #implement basic cache to avoid duplicate generation
+        if linecol in self.cursor_cache:
+           return self.cursor_cache[linecol]
+
         s = self.onANY_KIND(c, childs, childrepr, tokens)
         if s is None:
-            s = self.generator.generate_any_expr(childrepr)
-        return self.generator.generate_comment(str(c.kind), comment) + s
+          s = self.generator.generate_any_expr(childrepr)
+          
+        is_assign = (c.kind == CursorKind.BINARY_OPERATOR and self.find_operator_before(c, childs[1]) == "=")
+        silent_expr = c.kind not in [CursorKind.BINARY_OPERATOR, CursorKind.UNEXPOSED_EXPR, CursorKind.DECL_REF_EXPR]
+        if silent_expr or is_assign:
+
+            prev, var = self.generator.pop_prev_statements()
+            if var is not None:
+                s = prev + s
+        
+        s = self.generator.generate_comment(str(c.kind), comment) + s
+        self.cursor_cache[linecol] = s
+
+        return s
 
     def generate_cursor_clean(self, c):
         prev_comments_enabled = self.comments_enabled
@@ -302,18 +319,18 @@ class CFlexClangParser:
                 #quit()
 
             if op == "=":
-                return self.generator.generate_assignment_operator(lhschild, op, rhschild, c.type.spelling) #FIXME: check overload
+                return self.generator.generate_overloaded_assignment_operator(lhschild, op, rhschild, c.type.spelling) #FIXME: check overload
             ltyp, lcount = self.get_canonicaltype_and_count(childs[0])
             if rhschild:
                 rtyp, rcount = self.get_canonicaltype_and_count(childs[2])
                 #print("OVERLOADED BINARY OPERATOR:", ltyp, op, rtyp, file=sys.stderr)
                 fname = bin_operator_to_name(ltyp, op, rtyp)
-                return self.generator.generate_call(fname, [lhschild, rhschild])
+                return self.generator.generate_overloaded_call(fname, [lhschild, rhschild], c.typ.spelling)
             elif len(childs) == 1:
                 #child0 = childs[0].get_children()
                 #ltyp, count = self.get_canonicaltype_and_count(next(child0))
                 castname = ltyp + "_to_" + name[9:] #cast
-                return self.generator.generate_call(castname, childrepr)
+                return self.generator.generate_overloaded_call(castname, childrepr, c.typ.spelling)
             else:
                 return self.generator.generate_unary_operator(op, childrepr) 
 
@@ -325,16 +342,17 @@ class CFlexClangParser:
                     return None
                 ctyparg = "_from_" + ctyparg
                 name = ctyp + "_make" + ctyparg
-                return self.generator.generate_call(name, childrepr)
+                return self.generator.generate_overloaded_call(name, childrepr, c.typ.spelling)
     
 
         if len(tokens) == 0 or name == tokens[0].spelling:
             argsexpr = self.childs_recurse(childs[1:], ["arg"])
-            return self.generator.generate_call(name, argsexpr)
+            return self.generator.generate_overloaded_call(name, argsexpr, c.typ.spelling)
 
         if len(childs) > 1: #for arguments to constructor like in vector init
             argsexpr = self.childs_recurse(childs, ["arg"])
-            return self.generator.generate_call(name + "_make", argsexpr)
+            return self.generator.generate_overloaded_call(name + "_make", argsexpr, c.typ.spelling)
+            
 
 
     def onCOMPOUND_STMT(self, c, childs, childrepr, tokens):
@@ -374,12 +392,12 @@ class CFlexClangParser:
         if len(fulltokens) > len(child0expr) and fulltokens.startswith(child0expr):
             # handles special case for some member access not reaching last element in structure depth access
             return fulltokens
-        return self.generator.generate_unexposed_expr(childrepr)
+        return self.generator.generate_unexposed_expr(childrepr, c.type.spelling)
 
     def onCONDITIONAL_OPERATOR(self, c, childs, childrepr, tokens):
-        cond = self.generate_cursor(childs[0], ["cond"])
         then_expr = self.generate_cursor(childs[1], ["then"])
         else_expr = self.generate_cursor(childs[2], ["else"])
+        cond = self.generate_cursor(childs[0], ["cond"]) #this need to be calculated after the other expressions
         return self.generator.generate_conditional_operator(cond, then_expr, else_expr)
 
     def onSWITCH_STMT(self, c, childs, childrepr, tokens):
@@ -426,11 +444,11 @@ class CFlexClangParser:
         return s
 
     def onIF_STMT(self, c, childs, childrepr, tokens):
-        cond = self.generate_cursor(childs[0], ["cond"]) #FIXME: string generation at time of visitor generation
         then_stmt = self.internal_generate_cursor_stmt(childs[1], ["then"])
         else_stmt = (
             self.internal_generate_cursor_stmt(childs[2], ["else"]) if len(childs) > 2  else None
         )
+        cond = self.generate_cursor(childs[0], ["cond"])
         return self.generator.generate_if_stmt(cond, then_stmt, else_stmt)
 
     def onDECL_REF_EXPR(self, c, childs, childrepr, tokens):
@@ -459,7 +477,7 @@ class CFlexClangParser:
                 fname = typ + "_make_from_" + get_arg_typs(childs[1:])
                 #FIXME: use childs_recurse(childs[1:])
                 next(childrepr) #1st is TYPE_REF, 2nd is the expression
-                return self.generator.generate_call(fname, childrepr) 
+                return self.generator.generate_overloaded_call(fname, childrepr, c.typ.spelling) 
             
         target_type = c.type.spelling
         expr_type = childs[0].type.spelling
@@ -510,12 +528,12 @@ class CFlexClangParser:
                 #generate vector overloaded function call
                 #print(ltyp, lhschild.spelling, op, rtyp, rhschild.spelling, file=sys.stderr)
                 fname = bin_operator_to_name(ltyp, op, rtyp)
-                return self.generator.generate_call(fname, childrepr)
+                return self.generator.generate_overloaded_call(fname, childrepr, c.type.spelling)
             elif ltyp in self.overloaded_types or rtyp in self.overloaded_types:
                 #generate floating point overloaded function call
                 #print(ltyp, lhschild.spelling, op, rtyp, rhschild.spelling, file=sys.stderr)
                 fname = bin_operator_to_name(ltyp, op, rtyp)
-                return self.generator.generate_call(fname, childrepr)
+                return self.generator.generate_overloaded_call(fname, childrepr, c.type.spelling)
 
         return self.generator.generate_binary_operator(lhs, op, rhs) #gets here if RHS has no-overloaded operators
 
@@ -542,10 +560,11 @@ class CFlexClangParser:
         decltyp = self.map_type(c)
         name = c.spelling
         has_value = not self.empty_childs(childs)
+        rtyp = recurse_unexposed(childs[1]).type.spelling if len(childs)>1 else None
         valueexpr = childrepr
         storage = c.storage_class.name
         storage = None if storage == "NONE" else storage.lower()
-        return self.generator.generate_var_decl(decltyp, name, has_value, valueexpr, storage)
+        return self.generator.generate_var_decl(decltyp, name, has_value, valueexpr, rtyp, storage)
 
     def onTYPEDEF_DECL(self, c, childs, childrepr, tokens):
         decltyp = c.underlying_typedef_type
