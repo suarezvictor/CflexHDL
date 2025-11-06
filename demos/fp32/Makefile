@@ -11,7 +11,7 @@ SIMULATOR_MAIN=simulator.cpp
 VERILATOR_OPT_FAST?=-O3
 
 #select FP32 core to test
-#FP32?=_fp32_div
+#FP32?=_float_mul
 FP32?=_mandel
 
 all: run

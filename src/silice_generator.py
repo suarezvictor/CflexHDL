@@ -67,7 +67,9 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         return "group " + name + " { " + self.generate_expr(fields, " ") + " };"
 
     def generate_field_decl(self, fieldtyp, name):
-        return "\n" + self.ind + fieldtyp + " " + name + ";"
+        typ = fieldtyp
+        if typ == "float": typ = "uint32" #FIXME: use map_type
+        return "\n" + self.ind + typ + " " + name + ";"
 
     def generate_bitfield_decl(self, fieldtyp, name, width, offsetbits):
         return fieldtyp + " " + name + ":" + str(width) + " /*@" + str(offsetbits) + "*/;"

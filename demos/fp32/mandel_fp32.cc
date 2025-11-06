@@ -16,6 +16,13 @@ MODULE _mandel(const int32& ua, const int32& ub, uint32& result)
 	float y = /*4.f/FRAME_HEIGHT*/0.00833f* ub;
 
 	uint32 i = 0;
+
+	union {
+		float sum;
+		struct { uint32 frac:23; uint32 exp:8; uint32 sign:1; } s;
+		struct { uint32 :20; uint32 color:12; } u;
+	};
+
 	uint8 c;
 	for (c = 0; c < 16; c = c + 1)
 	{
@@ -32,7 +39,10 @@ MODULE _mandel(const int32& ua, const int32& ub, uint32& result)
 			i = i + 1;
 		}
 	} 
-	result = i;
+	
+	//aproximates log2(sum), for colorization
+	int32 f = u.color - (127<<3);
+	result = ((i+1)<<4) - f;
 #else
 	//this makes cosimulation pass
 	float x = 0.00625f * ua;

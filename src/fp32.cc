@@ -44,7 +44,7 @@ MODULE _float_mul(const uint32& ua, const uint32& ub, uint32& result)
     }
     else
     {
-    	r.exp = exp;
+    	r.exp = ua == 0 || ub  == 0 ? 0 : exp; //handles zero case
     	r.frac = mant >> 23;
     }
 
@@ -74,12 +74,12 @@ MODULE _float_add(const uint32& ua, const uint32& ub, uint32& result)
 	a_u = ua;
 	b_u = ub;
 
-    int8 exp_a = a.exp;
-    int8 exp_b = b.exp;
+    uint8 exp_a = a.exp;
+    uint8 exp_b = b.exp;
     uint32 mant_a;
     uint32 mant_b;
     
-    int8 exp;
+    uint8 exp;
     
     // Align exponents
     if (exp_a >= exp_b)
@@ -249,18 +249,18 @@ MODULE _float_div(const uint32& ua, const uint32& ub, uint32& result)
 // Comparison
 // ------------------------
 //FIXME: this requires syntax support in parser/generator
-int32 float_monotonic(uint32 a) { return (a & 0x80000000) ? (-a) ^ 0x80000000 : a; }
+int32 float_monotonic(int32 a) { return (a < 0) ? (-a) ^ 0x80000000 : a; }
 
-MODULE _float_lt(const uint32& ua, const uint32& ub, uint1& result)
+MODULE _float_lt(const int32& ua, const int32& ub, uint32& result)
 {
 #if 1
-  int32 ai = (ua & 0x80000000) ? (-ua) ^ 0x80000000 : ua;
-  int32 bi = (ub & 0x80000000) ? (-ub) ^ 0x80000000 : ub;
+  int32 ai = (ua < 0) ? (-ua) ^ 0x80000000 : ua;
+  int32 bi = (ub < 0) ? (-ub) ^ 0x80000000 : ub;
 #else
   int32 ai = float_monotonic(ua);
   int32 bi = float_monotonic(ub);
 #endif
-  result = ua < ub;
+  result = ai < bi;
 }
 
 

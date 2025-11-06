@@ -7,10 +7,10 @@
 
 #include "cflexhdl.h"
 
-//#define _DEBUG
+#define _DEBUG
 
 #ifdef _DEBUG
-#define ITERATIONS 10
+#define ITERATIONS 1000	
 #define DISPLAY printf
 #else
 #define ITERATIONS 1*1000*1000
@@ -32,7 +32,8 @@ VM_fp32 *top = new VM_fp32;
 uint32_t random_fp32()
 {
 	fp32_t x;
-    x.f =  ((float)rand() / RAND_MAX) * 4. - 2.;
+    //x.f =  ((float)rand() / RAND_MAX) * 4. - 2.;
+    x.u = (rand() / (RAND_MAX/480)) - 240; //for mandel
     return x.u;
 }
 
@@ -68,15 +69,18 @@ int main()
     top->in_ua = a;
     top->in_ub = b;
 
+	int multicycle = 0;
 	while(!top->out_done)
 	{
-      DISPLAY("verilator: step %ld, waiting...\n", clk_count);
       top->clock = 0; top->eval();
       top->clock = 1; top->eval();
 
       v_result = top->out_result;
       ++clk_count;
+      ++multicycle;
     }
+    if(multicycle)
+      DISPLAY("simulation intermediate steps: %ld\n", multicycle);
 #endif
 
 #ifdef CFLEX_SIMULATION
@@ -107,7 +111,7 @@ int main()
 
 #ifdef CFLEX_VERILATOR  
     if(result != v_result)
-    if(fabs(double(result) - double(v_result)) > 1) //ok for mandelbrot generator
+    //if(fabs(double(result) - double(v_result)) > 1)
     //if(fabs(double(result) - double(v_result)) > 8)
     {
       fprintf(stderr, "FAIL: cosimulation does NOT match\n");
