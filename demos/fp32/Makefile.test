@@ -1,0 +1,42 @@
+#TODO: see $(LITEX_ROOT)/litex/soc/software/demo/Makefile
+
+BOARD?=sim
+BUILD_DIR=./build/$(BOARD)
+LITEX_ROOT=../../../litex
+
+ifeq ($(filter prerequisites clean,$(MAKECMDGOALS)),)
+include $(BUILD_DIR)/software/include/generated/variables.mak
+endif
+
+include $(LITEX_ROOT)/litex/soc/software/common.mak
+
+CXXFLAGS += -I../../include -O3
+
+all: $(BOARD)
+
+%.o: %.S
+	$(assemble)
+
+%.o: %.c
+	$(compile)
+
+%.o: %.cpp
+	$(compilexx)
+
+%.bin: %.elf
+	$(OBJCOPY) -O binary $< $@
+	chmod -x $@
+
+firmware: main.bin
+
+main.elf: main.o crt0.o
+	$(CC) -T linker.ld -o main.elf crt0.o main.o $(PACKAGES:%=-L$(BUILD_DIR)/software/%) -L$(BUILDINC_DIRECTORY) $(CPUFLAGS) -nostartfiles $(LIBS:lib%=-l%)  
+	
+prerequisites: sim.py
+	python sim.py --no-compile-gateware
+
+sim: main.bin
+	VIDEO=1 $(PYTHON) sim.py --sdram-init main.bin
+
+clean:
+	rm -Rf build

@@ -1,7 +1,9 @@
 // Simple mandelbrot demo
 // (C) 2025 Victor Suarez Rovere <suarezvictor@gmail.com>
 
+#ifndef DISABLE_HARDWARE_ACCEL
 #include "cflexhdl.h"
+#endif
 
 #include "../../src/fp32.cc"
 
