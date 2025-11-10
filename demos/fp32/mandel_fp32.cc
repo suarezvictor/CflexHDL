@@ -30,7 +30,7 @@ MODULE _mandel(const int32& ua, const int32& ub, uint32& result)
 	{
 		float zrsq = zr * zr;
 		float zisq = zi * zi;
-		float sum = zrsq + zisq;
+		sum = zrsq + zisq;
 
 		if(sum < 4.f)
 		{

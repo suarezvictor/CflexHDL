@@ -10,11 +10,38 @@
 #include "mandel_fp32.cc"
 
 
+void run_mandel(uint32_t *fb, bool accel)
+{
+	for(int y = 0; y < VIDEO_FRAMEBUFFER_VRES; ++y)
+	{
+		for(int x = 0; x < VIDEO_FRAMEBUFFER_HRES; ++x)
+		{
+			uint32_t *pix = &fb[y*VIDEO_FRAMEBUFFER_HRES+x];
+			int32 xc = x - VIDEO_FRAMEBUFFER_HRES/2;
+			int32 yc = y - VIDEO_FRAMEBUFFER_VRES/2;
+			uint32 r;
+			
+			if(accel)
+			{
+				fp32_ua_write(xc);
+				fp32_ub_write(yc);
+				fp32_run_write(1);
+				while(!fp32_done_read());
+				r = fp32_result_read();
+				fp32_run_write(0);
+			}
+			else
+				_mandel(xc, yc, r); //software version
 
-#ifndef VIDEO_FRAMEBUFFER_BASE
-#error VIDEO_FRAMEBUFFER_BASE not defined
-#endif
-
+			uint32 color = (r<<8) | (r > 255 ? 0 : 0xC0);
+			
+			if(accel)
+				*pix = color;
+			else
+				*pix = (*pix == color) ? 0xFF0000 : 0xFFFFFF;
+		}
+	}
+}
 
 int main()
 {
@@ -22,17 +49,13 @@ int main()
 	printf("Framebuffer (%dx%d) at %p\n", VIDEO_FRAMEBUFFER_HRES, VIDEO_FRAMEBUFFER_VRES, fb);
 	memset(fb, 0x10, VIDEO_FRAMEBUFFER_HRES*VIDEO_FRAMEBUFFER_HRES*4);
 
-	for(int y = 0; y < VIDEO_FRAMEBUFFER_VRES; y += 10)
+	for(;;)
 	{
-		for(int x = 0; x < VIDEO_FRAMEBUFFER_HRES; x += 10)
-		{
-			uint32 r;
-			_mandel(x - VIDEO_FRAMEBUFFER_HRES/2, y - VIDEO_FRAMEBUFFER_VRES/2, r);
-			fb[y*VIDEO_FRAMEBUFFER_HRES+x] = (r<<8) | 0xC0;
-		}
+		run_mandel(fb, true);
+		run_mandel(fb, false);
+		flush_l2_cache();
+		printf("Done\n");
 	}
-	flush_l2_cache();
 
-	printf("Done\n");
 	return 0;
 }

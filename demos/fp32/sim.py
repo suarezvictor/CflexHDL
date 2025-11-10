@@ -134,23 +134,30 @@ class _CRG(Module):
             self.comb += cd.rst.eq(int_rst)
 
 
+class Accel(Module, AutoCSR):
+    def __init__(self):
+        self.name = "fp32"
+        self.ua = CSRStorage(32)
+        self.ub = CSRStorage(32)
+        self.result  = CSRStatus(32)
+        self.run = CSRStorage(reset=0)
+        self.done  = CSRStatus()
 
-# DMA ------------------------------------------------------------------------------------------
-from litedram.frontend.dma import LiteDRAMDMAWriter, LiteDRAMDMAReader
-class DMA(Module, AutoCSR):
-    def __init__(self, port_w, port_r):
-        self.submodules.reader = reader = LiteDRAMDMAReader(port=port_r, with_csr=True)
-        self.submodules.writer = writer = LiteDRAMDMAWriter(port=port_w, with_csr=True)
-        self._pixel_value = CSRStorage(32)
-        
-        self.comb += self.reader.source.connect(self.writer.sink)
-        self.comb += If(writer._enable.storage & ~reader._enable.storage,
-            writer.sink.valid.eq(1), writer.sink.data.eq(Replicate(self._pixel_value.storage, 4)))
+    def do_finalize(self):
+        super().do_finalize()
 
+        self.specials += Instance("M_fp32",
+            i_in_ua = self.ua.storage,
+            i_in_ub = self.ub.storage,
+            o_out_result = self.result.status,
+            i_in_run  = self.run.storage,
+            o_out_done = self.done.status,
+            o_out_clock = Signal(),
+            i_reset = ResetSignal("sys"),
+            i_clock = ClockSignal("sys")
+        )
 
 # Simulation SoC -----------------------------------------------------------------------------------
-def add_accel_cores(soc):
-	pass
 
 class SimSoC(SoCCore):
     def __init__(self, clocks,
@@ -207,6 +214,9 @@ class SimSoC(SoCCore):
             self.submodules.videophy = VideoPHYModel(video_pads, clock_domain="pix")
             self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", format="rgb888", clock_domain="pix") #
             self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
+
+        # Accelerator --------------------------------------------------------------------------------------
+        self.submodules.fp32 = Accel()
 
 
 
@@ -282,7 +292,7 @@ def main():
         soc.add_constant("ROM_BOOT_ADDRESS", ram_boot_address)
 
     soc.add_constant("LITEX_SIMULATION") #this is to make the software know if it's simulation
-    add_accel_cores(soc)
+    soc.platform.add_source("build/top_instance.v")
 
 
     builder = Builder(soc, **builder_kwargs)

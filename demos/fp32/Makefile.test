@@ -3,6 +3,7 @@
 BOARD?=sim
 BUILD_DIR=./build/$(BOARD)
 LITEX_ROOT=../../../litex
+GENERATOR?=../../src/silice_generator.py
 
 ifeq ($(filter prerequisites clean,$(MAKECMDGOALS)),)
 include $(BUILD_DIR)/software/include/generated/variables.mak
@@ -10,7 +11,8 @@ endif
 
 include $(LITEX_ROOT)/litex/soc/software/common.mak
 
-CXXFLAGS += -I../../include -O3
+INCLUDE = -I../../include
+CXXFLAGS += $(INCLUDE) -O3
 
 all: $(BOARD)
 
@@ -35,8 +37,15 @@ main.elf: main.o crt0.o
 prerequisites: sim.py
 	python sim.py --no-compile-gateware
 
-sim: main.bin
+sim: main.bin verilog
 	VIDEO=1 $(PYTHON) sim.py --sdram-init main.bin
 
+verilog: $(BUILD_DIR)/../top_instance.v
+
+$(BUILD_DIR)/../top_instance.v: mandel_fp32.cc
+	cpp $(INCLUDE) -DCFLEX_PARSER -D_mandel=_fp32 mandel_fp32.cc -E -o $(BUILD_DIR)/top_instance.cpp
+	$(GENERATOR) $(BUILD_DIR)/top_instance.cpp > $(BUILD_DIR)/top_instance.si
+	silice -f ../../external/silice/bare.v $(BUILD_DIR)/top_instance.si -o $(BUILD_DIR)/../top_instance.v --export fp32
+
 clean:
-	rm -Rf build
+	rm -Rf build *.elf *.o *.bin
