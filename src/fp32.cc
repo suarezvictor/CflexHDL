@@ -1,4 +1,6 @@
+#ifndef DISABLE_HARDWARE_ACCEL
 #include "cflexhdl.h"
+#endif
 
 #ifndef CFLEX_PARSER
 union fp32_t {
@@ -31,24 +33,30 @@ MODULE _float_mul(const uint32& ua, const uint32& ub, uint32& result)
 	a_u = ua;
 	b_u = ub;
 
-    int8 exp = a.exp + b.exp - 127;
-    uint25 mant_a = a.frac | 0x800000;
-    uint25 mant_b = b.frac | 0x800000;
-    uint64 mant = promote_u64(mant_a) * promote_u64(mant_b);
 
-    r.sign = a.sign ^ b.sign;
-    if ((mant >> 47) & 1)
-    {
-    	r.exp = exp + 1;
-    	r.frac = mant >> 24;
-    }
+    if(a.exp == 0 || b.exp  == 0) //treat zero and subnormals as zero
+    	result = 0; 
     else
     {
-    	r.exp = ua == 0 || ub  == 0 ? 0 : exp; //handles zero case
-    	r.frac = mant >> 23;
-    }
+		int8 exp = a.exp + b.exp - 127;
+		uint25 mant_a = a.frac | 0x800000;
+		uint25 mant_b = b.frac | 0x800000;
+		uint64 mant = promote_u64(mant_a) * promote_u64(mant_b);
 
-    result = r_u;
+		if ((mant >> 47) & 1)
+		{
+			r.exp = exp + 1;
+			r.frac = mant >> 24;
+		}
+		else
+		{
+			r.exp = exp;
+			r.frac = mant >> 23;
+		}
+
+        r.sign = a.sign ^ b.sign;
+		result = r_u;
+	}
 }
 
 // ------------------------
@@ -121,6 +129,14 @@ MODULE _float_add(const uint32& ua, const uint32& ub, uint32& result)
     if (mant == 0)
     {
         result = 0;
+    }
+    else if(a.exp == 0) //denormalized A
+    {
+    	result = ub;
+    }
+    else if(b.exp == 0) //denormalized B
+    {
+    	result = ua;
     }
     else
     {
