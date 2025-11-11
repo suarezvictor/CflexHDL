@@ -10,8 +10,9 @@
 #include "mandel_fp32.cc"
 
 
-void run_mandel(uint32_t *fb, bool accel)
+unsigned run_mandel(uint32_t *fb, bool accel)
 {
+	unsigned errors = 0;
 	for(int y = 0; y < VIDEO_FRAMEBUFFER_VRES; ++y)
 	{
 		for(int x = 0; x < VIDEO_FRAMEBUFFER_HRES; ++x)
@@ -38,23 +39,31 @@ void run_mandel(uint32_t *fb, bool accel)
 			if(accel)
 				*pix = color;
 			else
-				*pix = (*pix == color) ? 0xFF0000 : 0xFFFFFF;
+			{
+				bool ok = *pix == color;
+				if(!ok)
+				{
+					printf("Values does not match with inputs %d, %d\n", xc, yc);
+					++errors;
+				}
+				*pix = ok ? 0xFF0000 : 0xFFFFFF;
+			}
 		}
 	}
+	return errors;
 }
 
 int main()
 {
 	uint32_t *fb = (uint32_t *) VIDEO_FRAMEBUFFER_BASE;
-	printf("Framebuffer (%dx%d) at %p\n", VIDEO_FRAMEBUFFER_HRES, VIDEO_FRAMEBUFFER_VRES, fb);
 	memset(fb, 0x10, VIDEO_FRAMEBUFFER_HRES*VIDEO_FRAMEBUFFER_HRES*4);
 
 	for(;;)
 	{
 		run_mandel(fb, true);
-		run_mandel(fb, false);
+		int err = run_mandel(fb, false);
+		printf("Accelerator vs. software errors: %d\n", err);
 		flush_l2_cache();
-		printf("Done\n");
 	}
 
 	return 0;

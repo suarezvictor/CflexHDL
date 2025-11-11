@@ -35,9 +35,8 @@ MODULE _mandel(const int32& ua, const int32& ub, uint32& result)
 		if(sum < 4.f)
 		{
 			float zr2 = zr + zr;
-			float zi_t = zr2 * zi;
 			zr = zrsq - zisq + x;
-			zi = zi_t + y;
+			zi = zr2 * zi + y;
 			i = i + 1;
 		}
 	} 
@@ -45,13 +44,38 @@ MODULE _mandel(const int32& ua, const int32& ub, uint32& result)
 	//aproximates log2(sum), for colorization
 	int32 f = u.color - (127<<3);
 	result = ((i+1)<<4) - f;
-#else
-	//this makes cosimulation pass
-	float x = 0.00625f * ua;
-	float y = 0.00833f * ub;
-	float z = x + y;
-	int32 i = 2.f*z;
-	result = i;
 #endif
+#if 0
+	//this makes cosimulation fail if denormalized numbers are not correctly handled
+	float y = 1.f * ub;
+	float u = 0.f + y; //checks adding zero
+	float zisq = u * u;
+	
+	int32 r = 10000.f*zisq;
+	if(r<0)
+		result = 0-r;
+	else
+		result = r;
+#endif
+#if 0
+	//this makes cosimulation fail if multiplication rounding is not correctly handled
+	int32 f = 100000.f*0.36916f;
+	result = f;
+#endif
+#if 0
+	//this makes cosimulation fail if addition rounding is not correctly handled
+	float zr = 3.975039f - 1.989062f;
+
+	union
+	{
+		float m;
+		struct {uint32 h:32; } l;
+	};
+	m = zr;
+
+	int32 f = l.h;
+	result = f;
+#endif
+
 }
 

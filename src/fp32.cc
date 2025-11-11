@@ -46,12 +46,12 @@ MODULE _float_mul(const uint32& ua, const uint32& ub, uint32& result)
 		if ((mant >> 47) & 1)
 		{
 			r.exp = exp + 1;
-			r.frac = mant >> 24;
+			r.frac = (mant >> 24) + ((mant >> 23) & 1); //fast but non fully-compliant rounding
 		}
 		else
 		{
 			r.exp = exp;
-			r.frac = mant >> 23;
+			r.frac = (mant >> 23) + ((mant >> 22) & 1); //fast but non fully-compliant rounding
 		}
 
         r.sign = a.sign ^ b.sign;
@@ -93,14 +93,14 @@ MODULE _float_add(const uint32& ua, const uint32& ub, uint32& result)
     if (exp_a >= exp_b)
     {
       exp = exp_a;
-      mant_a = a.frac | 0x800000;
-      mant_b = (b.frac | 0x800000) >> (exp_a - exp_b);
+      mant_a = (a.frac | 0x800000) << 3; //add 3 bits of extra precision for add/sub
+      mant_b = ((b.frac | 0x800000) << 3) >> (exp_a - exp_b);
     }
     else if (exp_b > exp_a)
     {
       exp = exp_b;
-      mant_b = b.frac | 0x800000;
-      mant_a = (a.frac | 0x800000) >> (exp_b - exp_a);
+      mant_b = (b.frac | 0x800000) << 3;
+      mant_a = ((a.frac | 0x800000) << 3) >> (exp_b - exp_a);
     }
 
 
@@ -140,13 +140,14 @@ MODULE _float_add(const uint32& ua, const uint32& ub, uint32& result)
     }
     else
     {
-		if (mant & (1 << 24))
+		//FIXME: also consider rounding
+		if ((mant>>3) & (1 << 24))
 		{
-		    // overflow: shift right once
-		    r.frac = mant >> 1;
+		    // overflow: shift right one more bit
+		    r.frac = mant >> (1+3);
 		    r.exp = exp + 1;
 		}
-		else if (!(mant & 0xFF800000))
+		else if (!((mant>>3) & 0xFF800000))
 		{
 		    // underflow: shift left until top bit set
 		    uint32 mant0 = mant;
@@ -160,11 +161,11 @@ MODULE _float_add(const uint32& ua, const uint32& ub, uint32& result)
 			if ((mant4 & 0x80000000u) == 0) { exp5 = exp4 -  1; mant5 = mant4 <<  1; } else { mant5 = mant4; exp5 = exp4; }
 			
 		    r.frac = mant5 >> 8;
-		    r.exp = exp5 + 8;
+		    r.exp = exp5 + (8-3);
 		}
 		else
 		{
-			r.frac = mant;
+			r.frac = mant >> 3;
 			r.exp  = exp;
 		}
 
@@ -243,6 +244,7 @@ MODULE _float_div(const uint32& ua, const uint32& ub, uint32& result)
 	mant = dividend / divisor;
 #endif
 
+	//TODO: also consider rounding and subnormal inputs
     if (mant & (1 << 23))
     {
       r.exp  = exp + 127;
