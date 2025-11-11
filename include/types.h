@@ -17,5 +17,15 @@ typedef signed short int16, int10;
 typedef int int21, int27, int31, int32;
 typedef signed char int8;
 
+
+#ifdef CFLEX_PARSER
+//just needed if compiled (like 32-bit multiplication with 64-bit output)
+#define promote_u64(x) (x)
+#define promote_u128(x) (x)
+#else
+#define promote_u64(x) uint64(x)
+#endif
+
+
 #endif // __TYPES_H__
 

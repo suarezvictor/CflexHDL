@@ -31,15 +31,6 @@ typedef int10 int10_t;
 
 #define bitslice(B, E, n) (((n) >> (E)) & ((1 << ((B)-(E)+1))-1))
 
-#ifdef CFLEX_PARSER
-//just needed if compiled (like 32-bit multiplication with 64-bit output)
-#define promote_u64(x) (x)
-#define promote_u128(x) (x)
-#else
-#define promote_u64(x) uint64(x)
-#endif
-
-
 template<class T>
 class reg //delayed assigment
 {
