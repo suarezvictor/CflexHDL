@@ -39,10 +39,23 @@ MODULE _float_mul(const uint32& ua, const uint32& ub, uint32& result)
     else
     {
 		int8 exp = a.exp + b.exp - 127;
+#if 0
 		uint25 mant_a = a.frac | 0x800000;
 		uint25 mant_b = b.frac | 0x800000;
 		uint64 mant = promote_u64(mant_a) * promote_u64(mant_b);
-
+#endif
+#if 1
+		//lower precision but uses about half multiplier resources on ECP5 than at full precision
+		uint18 mant_a = (a.frac|0x800000)>>6;
+		uint18 mant_b = (b.frac|0x800000)>>6;
+		uint64 mant = (promote_u64(mant_a) * promote_u64(mant_b )) << 12;
+#endif
+#if 0
+		//sightly more precision, more fabric required for the additions
+		uint18 mant_a = a.frac>>5;
+		uint18 mant_b = b.frac>>5;
+		uint64 mant = (promote_u64(mant_a) * promote_u64(mant_b)<<10) + (promote_u64(mant_a)<<(23+5)) + (promote_u64(mant_b)<<(23+5)) + (promote_u64(1)<<46);
+#endif
 		if ((mant >> 47) & 1)
 		{
 			r.exp = exp + 1;
@@ -297,7 +310,7 @@ MODULE _float_to_int(const uint32& a, int32& result)
 
     int8 shift = i.exp - 127 - 23;
 
-    if (shift < -23)
+    if (shift < -23) //TODO: handle overflow
     {
         result = 0;
     }
@@ -306,7 +319,27 @@ MODULE _float_to_int(const uint32& a, int32& result)
        uint32 mant = i.frac | (1 << 23);
        int32 value;
 
-       value = (shift >= 0) ? mant << shift : mant >> -shift; //FIXME: this is too slow in logic
+       if(shift >= 0)
+       {
+       		uint32 value0 = mant;
+       		uint32 value1, value2, value3, value4;
+       		value1 = shift & 1 ? value0 << 1 : value0;
+       		value2 = shift & 2 ? value1 << 2 : value1;
+       		value3 = shift & 4 ? value2 << 4 : value2;
+       		value4 = shift & 8 ? value3 << 8 : value3;
+       		value = shift & 16 ? value4 << 16 : value4;
+       }
+       else
+       {
+       		uint8 shiftr = 0-shift;
+       		uint32 value0 = mant;
+       		uint32 value1, value2, value3, value4;
+       		value1 = shiftr & 1 ? value0 >> 1 : value0;
+       		value2 = shiftr & 2 ? value1 >> 2 : value1;
+       		value3 = shiftr & 4 ? value2 >> 4 : value2;
+       		value4 = shiftr & 8 ? value3 >> 8 : value3;
+       		value = shiftr & 16 ? value4 >> 16 : value4;
+	   }
 
        if(i.sign)
          result = 0-value; //FIXME: support unary operator
@@ -346,6 +379,32 @@ MODULE _float_int(const int32& i, uint32& result)
 	result = r_u;
 }
 
+// ------------------------
+// Shift
+// ------------------------
+#if 0 //this is untested
+MODULE _float_shl(const uint32& ua, const uint8& sh, uint32& result)
+{
+	union {
+		uint32 a_u;
+		struct { uint32 frac:23; uint32 exp:8; uint32 sign:1; } a;
+	};
+	a_u = ua;
+	a.exp = a.exp + sh;
+	result = a_u;
+}
+
+MODULE _float_shr(const uint32& ua, const uint8& sh, uint32& result)
+{
+	union {
+		uint32 a_u;
+		struct { uint32 frac:23; uint32 exp:8; uint32 sign:1; } a;
+	};
+	a_u = ua;
+	a.exp = a.exp - sh;
+	result = a_u;
+}
+#endif
 
 // ------------------------
 // Misc functions
