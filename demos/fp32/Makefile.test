@@ -43,7 +43,15 @@ prerequisites: $(BOARD).py
 	python $(BOARD).py --no-compile-gateware
 
 sim: $(BUILD_DIR)/main.bin verilog
-	VIDEO=1 $(PYTHON) sim.py --sdram-init main.bin
+	VIDEO=1 $(PYTHON) sim.py --sdram-init $(BUILD_DIR)/main.bin
+
+bitstream: $(BOARD)
+
+gsd_orangecrab: $(BUILD_DIR)/gateware/gsd_orangecrab.bit
+
+$(BUILD_DIR)/gateware/gsd_orangecrab.bit: $(BOARD).py verilog
+	python $(BOARD).py
+	echo Run openFPGALoader -c ft2232 $(BUILD_DIR)/gateware/gsd_orangecrab.bit
 
 verilog: $(BUILD_DIR)/../top_instance.v
 

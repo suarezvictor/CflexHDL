@@ -4,7 +4,11 @@
 // SPDX-License-Identifier: MIT
 // adapted from: https://www.shadertoy.com/view/4ft3Wn
 
-#include "../src/fp32.cc"
+#ifndef DISABLE_HARDWARE_ACCEL
+#include "cflexhdl.h"
+#endif
+
+#include "../../src/fp32.cc"
 
 //FIXME do not use macros for this
 #ifndef min
@@ -15,17 +19,18 @@
 //tweak as required to fit FPGA device (just the sphere for the ECP5 25F)
 #define INCLUDE_SPHERE
 #define INCLUDE_SKYLIGHT
-#ifndef CFLEX_PARSER
-#define INCLUDE_SKYSHADOW
-#define INCLUDE_SUNSHADOW
-#define INCLUDE_BOUNCELIGHT
-#endif
+#define INCLUDE_CHECKERS
+
+#define INCLUDE_SUNLIGHT
+//#define INCLUDE_SUNSHADOW
+//#define INCLUDE_BOUNCELIGHT
+
 
 #define _shader _mandel //FIXME: this is only for compatibility with mandelbrot project
 MODULE _shader( const int32& ua, const int32& ub, uint32& result)
 {
-	float xk = /*2.f/640.f*/40.f/320.f;
-	float yk = /*2.f/480.f*/40.f/320.f;
+	float xk = 0.125f; //40/320;
+	float yk = 0.125f; //40/320;
     float x = xk*ua;
     float y = yk*ub;
     
@@ -47,16 +52,25 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         //-------------------
         // Section C, Ground 
         //-------------------
-        R = 150 + v2int;
-        B = 50;
+#ifdef INCLUDE_CHECKERS
+        int16 l = 5000.f/v;
+        int16 cx = x*l;
+        int8 cz = l;
+        int16 check = (((cx>>6)^cz) & 64) ? v2int : 0;
+        B = 40 - check;
+        R = 130 - v2int;
+#else
+        B = 40;
+        R = 130 + v2int;
+#endif
 
-#ifdef INCLUDE_SKYSHADOW
+#ifdef INCLUDE_SUNLIGHT
         int16 p = h + v2*8;
         int16 cp = v * -240;
         int16 c = cp - p;
 
         // sky light / ambient occlusion
-        if(c > 1200)
+        if(c > 1320)        
         {
             int16 o0 = (25*c)>>3;
             int16 o = (c*(7840-o0)>>9) - 8560;
@@ -71,7 +85,7 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         float wx = w + 24.f;
         int16 d = r*r + u*wx;
         if(d > 90)
-        	R = R + d-90;
+        	R = R + d - 90;
 #endif
     }
     else
@@ -79,9 +93,9 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         //----------------
         // Section D, Sky 
         //----------------
-        int32 c = x + y + y;
-        R = 160 + c;
-        B = 250 + c;
+        int32 c = x + y;
+        R = 140 + c;
+        B = 240 + c;
     }
     
     R = max(0, min(R, 255));
@@ -147,6 +161,7 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         else
         {
           //antialias
+          //NOTE: mismatch at input coordinates 0, -125
           uint16 hint = h*64;
           uint9 m = 200*64 - hint;
           R = R+((R3-R)*m>>8);
