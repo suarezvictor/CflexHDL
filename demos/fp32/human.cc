@@ -16,25 +16,23 @@
 #define max(a, b) ( a > b ? a : b)
 #endif
 
-//tweak as required to fit FPGA device (just the sphere for the ECP5 25F)
+//tweak as required to fit FPGA device (i.e. all except SUNSHADOW for the ECP5 25F)
 #define INCLUDE_SPHERE
 #define INCLUDE_SKYLIGHT
 #define INCLUDE_CHECKERS
-
-#define INCLUDE_SUNLIGHT
-//#define INCLUDE_SUNSHADOW
-//#define INCLUDE_BOUNCELIGHT
+#define INCLUDE_AMBIENTSHADOW
+#define INCLUDE_SUNSHADOW //requires ECP 45F
+#define INCLUDE_BOUNCELIGHT
+#define INCLUDE_ANTIALIAS
 
 
 #define _shader _mandel //FIXME: this is only for compatibility with mandelbrot project
 MODULE _shader( const int32& ua, const int32& ub, uint32& result)
 {
-	float xk = 0.125f; //40/320;
-	float yk = 0.125f; //40/320;
-    float x = xk*ua;
-    float y = yk*ub;
+    float x = 0.125f*ua;
+    float y = 0.125f*ub;
     
-    int32 R, G, B;
+    int16 R, G, B;
 
     //-----------
     // Section A 
@@ -58,13 +56,17 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         int8 cz = l;
         int16 check = (((cx>>6)^cz) & 64) ? v2int : 0;
         B = 40 - check;
-        R = 130 - v2int;
 #else
         B = 40;
-        R = 130 + v2int;
 #endif
 
-#ifdef INCLUDE_SUNLIGHT
+#ifdef INCLUDE_SUNSHADOW
+        R = 130 - v2int;
+#else
+        R = 210 - v2int;
+#endif
+
+#ifdef INCLUDE_AMBIENTSHADOW
         int16 p = h + v2*8;
         int16 cp = v * -240;
         int16 c = cp - p;
@@ -74,12 +76,15 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         {
             int16 o0 = (25*c)>>3;
             int16 o = (c*(7840-o0)>>9) - 8560;
-            R = (R*o)>>10;
-            B = (B*o)>>10;
+            int32 Ro = R*o;
+            int32 Bo = B*o;
+            R = Ro>>10;
+            B = Bo>>10;
         }
 #endif
 #ifdef INCLUDE_SUNSHADOW
         // sun/key light with soft shadow
+        //NOTE: this is expensive in terms of FPGA resources
         float w = 50.f + v*4.f;
         float r = u - w;
         float wx = w + 24.f;
@@ -93,7 +98,7 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         //----------------
         // Section D, Sky 
         //----------------
-        int32 c = x + y;
+        int8 c = x + y;
         R = 140 + c;
         B = 240 + c;
     }
@@ -153,6 +158,8 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         	B3 = min(B2, 255);
         }
 
+#ifdef INCLUDE_ANTIALIAS
+         __sync_synchronize();
         if(h < 196.f)
         {
           R = R3;
@@ -161,12 +168,18 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         else
         {
           //antialias
-          //NOTE: mismatch at input coordinates 0, -125
-          uint16 hint = h*64;
-          uint9 m = 200*64 - hint;
-          R = R+((R3-R)*m>>8);
-          B = B+((B3-B)*m>>8);
+          //NOTE: mismatch at input coordinates -27, -36
+          int16 hint = h*64;
+          int16 m = 200*64 - hint;
+          int32 Rd = (R3-R)*m;
+          int32 Bd = (B3-B)*m;
+          R = R+(Rd>>8);
+          B = B+(Bd>>8);
         }
+#else
+        R = R3;
+        B = B3;
+#endif
 	}
 #endif
     //-------------------------  

@@ -48,10 +48,15 @@ sim: $(BUILD_DIR)/main.bin verilog
 bitstream: $(BOARD)
 
 gsd_orangecrab: $(BUILD_DIR)/gateware/gsd_orangecrab.bit
+machdyne_schoko: $(BUILD_DIR)/gateware/machdyne_schoko.bit
 
 $(BUILD_DIR)/gateware/gsd_orangecrab.bit: $(BOARD).py verilog
 	python $(BOARD).py
 	echo Run openFPGALoader -c ft2232 $(BUILD_DIR)/gateware/gsd_orangecrab.bit
+
+$(BUILD_DIR)/gateware/machdyne_schoko.bit: $(BOARD).py verilog
+	python $(BOARD).py --build --load
+	echo Run openFPGALoader -c ft2232 $(BUILD_DIR)/gateware/machdyne_schoko.bit
 
 verilog: $(BUILD_DIR)/../top_instance.v
 

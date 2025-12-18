@@ -7,8 +7,8 @@
 #include "types.h"
 
 #define CFLEX_SIMULATION
-#include "mandel_fp32.cc"
-
+//#include "mandel_fp32.cc"
+#include "human.cc"
 
 unsigned run_mandel(uint32_t *fb, bool accel)
 {
@@ -34,7 +34,8 @@ unsigned run_mandel(uint32_t *fb, bool accel)
 			else
 				_mandel(xc, yc, r); //software version
 
-			uint32 color = (r<<8) | (r > 255 ? 0 : 0xC0);
+			//uint32 color = (r<<8) | (r > 255 ? 0 : 0xC0);
+			uint32 color = r;
 			
 			if(accel)
 				*pix = color;
@@ -43,7 +44,7 @@ unsigned run_mandel(uint32_t *fb, bool accel)
 				bool ok = *pix == color;
 				if(!ok)
 				{
-					printf("Values does not match with inputs %d, %d\n", xc, yc);
+					printf("results does not match, inputs %d, %d\n", xc, yc);
 					++errors;
 				}
 				*pix = ok ? 0xFF0000 : 0xFFFFFF;
@@ -55,6 +56,8 @@ unsigned run_mandel(uint32_t *fb, bool accel)
 
 int main()
 {
+	//TODO: handle serial IRQ
+
 	uint32_t *fb = (uint32_t *) VIDEO_FRAMEBUFFER_BASE;
 	memset(fb, 0x10, VIDEO_FRAMEBUFFER_HRES*VIDEO_FRAMEBUFFER_HRES*4);
 
