@@ -45,6 +45,7 @@ class Accel(Module, AutoCSR):
         self.name = "fp32"
         self.ua = CSRStorage(32)
         self.ub = CSRStorage(32)
+        self.frame = CSRStorage(32)
         self.result  = CSRStatus(32)
         self.run = CSRStorage(reset=0)
         self.done  = CSRStatus()
@@ -55,6 +56,7 @@ class Accel(Module, AutoCSR):
         self.specials += Instance("M_fp32",
             i_in_ua = self.ua.storage,
             i_in_ub = self.ub.storage,
+            i_in_frame = self.frame.storage,
             o_out_result = self.result.status,
             i_in_run  = self.run.storage,
             o_out_done = self.done.status,

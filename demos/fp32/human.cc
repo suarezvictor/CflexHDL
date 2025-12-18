@@ -17,17 +17,17 @@
 #endif
 
 //tweak as required to fit FPGA device (i.e. all except SUNSHADOW for the ECP5 25F)
-#define INCLUDE_SPHERE
-#define INCLUDE_SKYLIGHT
-#define INCLUDE_CHECKERS
-#define INCLUDE_AMBIENTSHADOW
-#define INCLUDE_SUNSHADOW //requires ECP 45F
-#define INCLUDE_BOUNCELIGHT
-#define INCLUDE_ANTIALIAS
-
+#define INCLUDE_FLOOR 0
+#define INCLUDE_CHECKERS 1
+#define INCLUDE_SPHERE 2
+#define INCLUDE_SKYLIGHT 2
+#define INCLUDE_ANTIALIAS 3
+#define INCLUDE_SUNSHADOW 4 //requires ECP 45F
+#define INCLUDE_AMBIENTSHADOW 5
+#define INCLUDE_BOUNCELIGHT 6
 
 #define _shader _mandel //FIXME: this is only for compatibility with mandelbrot project
-MODULE _shader( const int32& ua, const int32& ub, uint32& result)
+MODULE _shader( const int32& ua, const int32& ub, const int32& frame, uint32& result)
 {
     float x = 0.125f*ua;
     float y = 0.125f*ub;
@@ -45,52 +45,68 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
     float h = u2 + v2;
 
     int32 v2int = v+v;
-	if(v2int < 0)
+#ifdef INCLUDE_FLOOR
+	if(frame > INCLUDE_FLOOR && v2int < 0)
     {
         //-------------------
         // Section C, Ground 
         //-------------------
 #ifdef INCLUDE_CHECKERS
-        int16 l = 5000.f/v;
-        int16 cx = x*l;
-        int8 cz = l;
-        int16 check = (((cx>>6)^cz) & 64) ? v2int : 0;
-        B = 40 - check;
-#else
-        B = 40;
+		if(frame > INCLUDE_CHECKERS)
+		{
+		    int16 l = 5000.f/v;
+		    int16 cx = x*l;
+		    int8 cz = l;
+		    int16 check = (((cx>>6)^cz) & 64) ? v2int : 0;
+		    B = 40 - check;
+        }
+        else
 #endif
+		{
+	        B = 40;
+	    }
+
 
 #ifdef INCLUDE_SUNSHADOW
-        R = 130 - v2int;
-#else
-        R = 210 - v2int;
+		if(frame > INCLUDE_SUNSHADOW)
+	        R = 130 - v2int;
+        else
 #endif
+		{
+    	    R = 210 - v2int;
+	    }
 
 #ifdef INCLUDE_AMBIENTSHADOW
-        int16 p = h + v2*8;
-        int16 cp = v * -240;
-        int16 c = cp - p;
+		if(frame > INCLUDE_AMBIENTSHADOW)
+		{
+		    int16 p = h + v2*8;
+		    int16 cp = v * -240;
+		    int16 c = cp - p;
 
-        // sky light / ambient occlusion
-        if(c > 1320)        
-        {
-            int16 o0 = (25*c)>>3;
-            int16 o = (c*(7840-o0)>>9) - 8560;
-            int32 Ro = R*o;
-            int32 Bo = B*o;
-            R = Ro>>10;
-            B = Bo>>10;
-        }
+		    // sky light / ambient occlusion
+		    if(c > 1320)        
+		    {
+		        int16 o0 = (25*c)>>3;
+		        int16 o = (c*(7840-o0)>>9) - 8560;
+		        int32 Ro = R*o;
+		        int32 Bo = B*o;
+		        R = Ro>>10;
+		        B = Bo>>10;
+		    }
+		}
 #endif
 #ifdef INCLUDE_SUNSHADOW
-        // sun/key light with soft shadow
-        //NOTE: this is expensive in terms of FPGA resources
-        float w = 50.f + v*4.f;
-        float r = u - w;
-        float wx = w + 24.f;
-        int16 d = r*r + u*wx;
-        if(d > 90)
-        	R = R + d - 90;
+		if(frame > INCLUDE_SUNSHADOW)
+		{
+		    // sun/key light with soft shadow
+		    //NOTE: this is expensive in terms of FPGA resources
+		    float w = 50.f + v*4.f;
+		    float r = u - w;
+		    float wx = w + 24.f;
+		    int16 d = r*r + u*wx;
+		    if(d > 90)
+		    	R = R + d - 90;
+		}
 #endif
     }
     else
@@ -107,7 +123,7 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
     B = max(0, min(B, 255));
 
 #ifdef INCLUDE_SPHERE
-    if( h < 200.f) 
+    if(frame > INCLUDE_SPHERE && h < 200.f) 
     {
         //-------------------
         // Section B, Sphere 
@@ -118,26 +134,39 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         float t = 40.625f + h*0.0625f;
         float p = t*u;
         float q = t*z;
+		int16 wsqint;
 #ifdef INCLUDE_BOUNCELIGHT
         // bounce light
-        int32 qf = q*208;
-        int32 pk = p*80;
-        int32 pq = ((208+80)<<9) + pk - qf;
-        int16 w = pq>>8;
-       	int16 wsqint = pq < 0 ? 0 : (w*w)>>10;
-#else
-		int16 wsqint = 0;
+        if(frame > INCLUDE_BOUNCELIGHT)
+        {
+		    int32 qf = q*208;
+		    int32 pk = p*80;
+		    int32 pq = ((208+80)<<9) + pk - qf;
+		    int16 w = pq>>8;
+		   	wsqint = pq < 0 ? 0 : (w*w)>>10;
+		}
+		else
 #endif
+		{
+			wsqint = 0;
+		}
+		
+		int16 pqint = 0;
+		int16 o;
 #ifdef INCLUDE_SKYLIGHT
         // sky light / ambient occlusion
-        int16 pint = p;
-        int16 qint = q;
-        int16 o = qint + 900;
-        int16 pqint = pint + qint;
-#else
-        int16 pqint = 0;
-        int16 o = 512;
+        if(frame > INCLUDE_SKYLIGHT)
+        {
+		    int16 pint = p;
+		    int16 qint = q;
+		    o = qint + 900;
+		    pqint = pint + qint;
+        }
+        else
 #endif
+        {
+	        o = 512;
+        }
         uint32 R2o = (R2 + wsqint)*o;
         uint32 B2o = B2*o; 
         R2 = R2o>>12;
@@ -160,7 +189,7 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
 
 #ifdef INCLUDE_ANTIALIAS
          __sync_synchronize();
-        if(h < 196.f)
+        if(frame <= INCLUDE_ANTIALIAS || h < 196.f)
         {
           R = R3;
           B = B3;
@@ -181,6 +210,7 @@ MODULE _shader( const int32& ua, const int32& ub, uint32& result)
         B = B3;
 #endif
 	}
+#endif
 #endif
     //-------------------------  
 
