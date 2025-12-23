@@ -21,10 +21,30 @@
 #define INCLUDE_CHECKERS 1
 #define INCLUDE_SPHERE 2
 #define INCLUDE_SKYLIGHT 2
-#define INCLUDE_ANTIALIAS 3
+#define INCLUDE_ANTIALIAS 2
+#define INCLUDE_AMBIENTSHADOW 3
 #define INCLUDE_SUNSHADOW 4 //requires ECP 45F
-#define INCLUDE_AMBIENTSHADOW 5
-#define INCLUDE_BOUNCELIGHT 6
+#define INCLUDE_BOUNCELIGHT 5
+#define SHADER_MAXFRAMES 7
+
+#define AA_CHECKERS //enable antialiasing for checkerboard
+
+void _triang(float x, float& r)
+{
+  int16 xi = 32768.f * x;
+  int16 sy = xi + 16384;
+  int16 abssy = sy < 0 ? -sy : sy;
+  int32 y = abssy - 16384;
+  r = 0.00003f * y; // 1.f/32768 = .0000305175f, but smaller value adds a bit more AA
+}
+
+void _clamp(float x, float& r)
+{
+  r = x;
+  if(x < -1.f) r = 0.f-1.f; //FIXME: float negative constant unsupported
+  if(1.f < x) r = 1.f;
+}
+
 
 #define _shader _mandel //FIXME: this is only for compatibility with mandelbrot project
 MODULE _shader( const int32& ua, const int32& ub, const int32& frame, uint32& result)
@@ -54,11 +74,50 @@ MODULE _shader( const int32& ua, const int32& ub, const int32& frame, uint32& re
 #ifdef INCLUDE_CHECKERS
 		if(frame > INCLUDE_CHECKERS)
 		{
+#ifdef AA_CHECKERS
+			//see prototype at https://www.shadertoy.com/view/tfdBWl
+			
+			//int32 W = 640;
+			//int32 H = 480;
+			
+            float sx = .033f*x;
+			float sy = .025f*v;
+			float sysq = sy * sy;
+
+			float dt_dsy = 1.f / sysq;
+			float t = dt_dsy * sy;
+			float pz = -2.f * t;
+
+			float dzw = dt_dsy * 0.00417f; // (2.f / (H-1)) ; //constant is pixel footprint in world space, increase for more AA
+			
+            float px = sx * t; //perspective
+            float abssx = sx;
+            if (sx < 0.f)
+              abssx = 0.f-sx; //FIXME: CflexHDL unary operator is interpreted as pointer!!
+
+			//FIXME: make functions calls easier to call
+			float dxw = 0.003125f + .5f * dzw * abssx ; //adds a minimum AA (2/W) near x center
+			float tri_fx = 0.f;
+            float sx_filtered = 0.f;
+			_triang(px, tri_fx);
+            _clamp(tri_fx / dxw, sx_filtered);
+
+			float tri_fz = 0.f;
+            float sz_filtered = 0.f;
+			_triang(pz, tri_fz);
+            _clamp(tri_fz / dzw, sz_filtered); 
+
+            float fog = v;
+            int32 c = sx_filtered * sz_filtered * v; //product results in checkerboard pattern
+
+            B = 40 + 32 - c;
+#else
 		    int16 l = 5000.f/v;
 		    int16 cx = x*l;
 		    int8 cz = l;
 		    int16 check = (((cx>>6)^cz) & 64) ? v2int : 0;
 		    B = 40 - check;
+#endif
         }
         else
 #endif
