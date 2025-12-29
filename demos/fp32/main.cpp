@@ -7,10 +7,19 @@
 #include "types.h"
 
 #define CFLEX_SIMULATION
-//#include "mandel_fp32.cc"
-#include "human.cc"
 
-unsigned run_mandel(uint32_t *fb, bool accel)
+#ifdef MAIN_SRC
+#define STR(x)  #x
+#define XSTR(x) STR(x)
+#include XSTR(MAIN_SRC) //include depends on a macro
+#else
+#include "human.cc"
+#endif
+
+
+static inline uint32_t floatBitsToUInt(float x) { return *(uint32_t*) &x; }
+
+unsigned run_shader(uint32_t *fb, uint32_t frame, bool accel)
 {
 	unsigned errors = 0;
 	for(int y = 0; y < VIDEO_FRAMEBUFFER_VRES; ++y)
@@ -18,25 +27,23 @@ unsigned run_mandel(uint32_t *fb, bool accel)
 		for(int x = 0; x < VIDEO_FRAMEBUFFER_HRES; ++x)
 		{
 			uint32_t *pix = &fb[y*VIDEO_FRAMEBUFFER_HRES+x];
-			int32 xc = x - VIDEO_FRAMEBUFFER_HRES/2;
-			int32 yc = y - VIDEO_FRAMEBUFFER_VRES/2;
-			uint32 r;
+			float xc = 2.f*x/VIDEO_FRAMEBUFFER_HRES - 1.f;
+			float yc = 2.f*y/VIDEO_FRAMEBUFFER_VRES - 1.f;
+			uint32 color;
 			
 			if(accel)
 			{
-				fp32_ua_write(xc);
-				fp32_ub_write(yc);
+				fp32_ua_write(floatBitsToUInt(xc));
+				fp32_ub_write(floatBitsToUInt(yc));
+				fp32_frame_write(frame);
 				fp32_run_write(1);
 				while(!fp32_done_read());
-				r = fp32_result_read();
+				color = fp32_result_read();
 				fp32_run_write(0);
 			}
 			else
-				_mandel(xc, yc, r); //software version
+				_shader(xc, yc, frame, color); //software version
 
-			//uint32 color = (r<<8) | (r > 255 ? 0 : 0xC0);
-			uint32 color = r;
-			
 			if(accel)
 				*pix = color;
 			else
@@ -44,7 +51,7 @@ unsigned run_mandel(uint32_t *fb, bool accel)
 				bool ok = *pix == color;
 				if(!ok)
 				{
-					printf("results does not match, inputs %d, %d\n", xc, yc);
+					printf("results does not match, inputs %d, %d\n", x, y);
 					++errors;
 				}
 				*pix = ok ? 0xFF0000 : 0xFFFFFF;
@@ -54,6 +61,10 @@ unsigned run_mandel(uint32_t *fb, bool accel)
 	return errors;
 }
 
+#ifndef SHADER_MAXFRAMES
+#define SHADER_MAXFRAMES 1
+#endif
+
 int main()
 {
 	//TODO: handle serial IRQ
@@ -61,11 +72,20 @@ int main()
 	uint32_t *fb = (uint32_t *) VIDEO_FRAMEBUFFER_BASE;
 	memset(fb, 0x10, VIDEO_FRAMEBUFFER_HRES*VIDEO_FRAMEBUFFER_HRES*4);
 
+	uint32_t frame = SHADER_MAXFRAMES;
 	for(;;)
 	{
-		run_mandel(fb, true);
-		int err = run_mandel(fb, false);
-		printf("Accelerator vs. software errors: %d\n", err);
+		printf("Frame %ld\n", frame);
+		run_shader(fb, frame, true);
+		if(frame >= SHADER_MAXFRAMES)
+		{
+			int err = run_shader(fb, frame, false);
+			printf("Accelerator vs. software errors: %d\n", err);
+			frame = 0;
+		}
+		else
+			++frame;
+			
 		flush_l2_cache();
 	}
 

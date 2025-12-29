@@ -23,6 +23,7 @@ inline void wait_clk() {++clk_count;}
 #endif
 
 #include "mandel_fp32.cc"
+//#include "human.cc"
 
 #ifdef CFLEX_VERILATOR  
 #include "VM_fp32.h"
@@ -32,8 +33,7 @@ VM_fp32 *top = new VM_fp32;
 uint32_t random_fp32()
 {
 	fp32_t x;
-    //x.f =  ((float)rand() / RAND_MAX) * 4. - 2.;
-    x.u = (rand() / (RAND_MAX/480)) - 240; //for mandel
+    x.f =  ((float)rand() / RAND_MAX) * 4. - 2.;
     return x.u;
 }
 
@@ -50,6 +50,12 @@ int main()
 
     a = random_fp32();
     b = random_fp32();
+    
+	//these inputs generate mismatches if rounding is not correct
+	//*(int*)&a = -176; *(int*)&b = 91; //C=0x2D vs. V=0x2E
+	//*(int*)&a = 57; *(int*)&b = 66; //C=0xE6 vs. V=0xE7
+	//*(int*)&a = -319; *(int*)&b = 0; //C=0xE6 vs. V=0xE7
+
 
 #ifdef CFLEX_SIMULATION
 #ifdef CFLEX_NO_COROUTINES
@@ -114,6 +120,8 @@ int main()
     //if(fabs(double(result) - double(v_result)) > 1)
     //if(fabs(double(result) - double(v_result)) > 8)
     {
+	    printf("step %ld, A=%f(0x%08X) B=%f(0x%08X), C_RESULT=%f(0x%08X), V_RESULT=%f(0x%08X)\n",
+	      clk_count, f_a.f, f_a.u, f_b.f, f_b.u, f_result.f, f_result.u, f_v_result.f, f_v_result.u);
       fprintf(stderr, "FAIL: cosimulation does NOT match\n");
       exit(1);
     }

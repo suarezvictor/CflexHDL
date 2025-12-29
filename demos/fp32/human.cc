@@ -35,7 +35,7 @@ void _triang(float x, float& r)
   int16 sy = xi + 16384;
   int16 abssy = sy < 0 ? -sy : sy;
   int32 y = abssy - 16384;
-  r = 0.00003f * y; // 1.f/32768 = .0000305175f, but smaller value adds a bit more AA
+  r = 0.0000305175f * y; // 1.f/32768
 }
 
 void _clamp(float x, float& r)
@@ -46,11 +46,10 @@ void _clamp(float x, float& r)
 }
 
 
-#define _shader _mandel //FIXME: this is only for compatibility with mandelbrot project
-MODULE _shader( const int32& ua, const int32& ub, const int32& frame, uint32& result)
+MODULE _shader(float ua, float ub, const uint32& frame, uint32& result)
 {
-    float x = 0.125f*ua;
-    float y = 0.125f*ub;
+    float x = 53.33f*ua; //corrects aspect ratio
+    float y = 40.f*ub; 
     
     int16 R, G, B;
 
@@ -58,7 +57,7 @@ MODULE _shader( const int32& ua, const int32& ub, const int32& frame, uint32& re
     // Section A 
     //-----------
     float u = x - 8.f;
-    float v = -4.f - y;
+    float v = -4.56f - y;
     float z = v;
     float u2 = u*u;
     float v2 = z*z;
@@ -108,7 +107,7 @@ MODULE _shader( const int32& ua, const int32& ub, const int32& frame, uint32& re
             _clamp(tri_fz / dzw, sz_filtered); 
 
             float fog = v;
-            int32 c = sx_filtered * sz_filtered * v; //product results in checkerboard pattern
+            int8 c = sx_filtered * sz_filtered * fog; //product results in checkerboard pattern
 
             B = 40 + 32 - c;
 #else

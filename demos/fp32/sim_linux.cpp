@@ -23,10 +23,10 @@ void run_shader(uint32_t *fbuf, uint32_t framecount)
 		for(int x = 0; x < VIDEO_FRAMEBUFFER_HRES; ++x)
 		{
 			uint32_t *pix = &fbuf[y*VIDEO_FRAMEBUFFER_HRES+x];
-			int32 xc = x - VIDEO_FRAMEBUFFER_HRES/2;
-			int32 yc = y - VIDEO_FRAMEBUFFER_VRES/2;
+			float xc = 2.f*x/VIDEO_FRAMEBUFFER_HRES - 1.f;
+			float yc = 2.f*y/VIDEO_FRAMEBUFFER_VRES - 1.f;
 			uint32 color;
-			_mandel(xc, yc, framecount, color); //software version
+			_shader(xc, yc, framecount, color); //software version
 			*pix = color;
 		}
 	}
@@ -41,6 +41,8 @@ inline bool simulation_display()
   return true;
 }
 
+#include <limits.h>
+
 int main()
 {
 	fb_init(VIDEO_FRAMEBUFFER_HRES, VIDEO_FRAMEBUFFER_VRES, false, &fb); //set vsync parameter to true to limit FPS
@@ -53,6 +55,15 @@ int main()
 		float dt = (higres_ticks()-start_time)/float(higres_ticks_freq());
 		float fps = framecount/dt;
 		printf("FPS %.1f, frame %d\n", 1./dt, framecount);
+
+#ifdef SHADER_MAXFRAMES
+		if(framecount < SHADER_MAXFRAMES)
+#endif
+		{
+		  char name[PATH_MAX];
+		  sprintf(name, "frame%03d.ppm", framecount);
+		  fb_screenshot_ppm(name, &pixels[0][0], VIDEO_FRAMEBUFFER_HRES, VIDEO_FRAMEBUFFER_VRES, VIDEO_FRAMEBUFFER_HRES*sizeof(uint32_t));
+		}
 
 		if(!simulation_display())
 		  break;

@@ -7,15 +7,15 @@
 
 #include "../../src/fp32.cc"
 
-
-MODULE _mandel(const int32& ua, const int32& ub, uint32& result)
+MODULE _shader(float ua, float ub, const uint32& frame, uint32& result)
 {
+
 #if 1
 	//this makes cosimulation pass
 	float zr = 0.f;
 	float zi = 0.f;
-	float x = /*4.f/FRAME_WIDTH*/0.00625f * ua;
-	float y = /*4.f/FRAME_HEIGHT*/0.00833f* ub;
+	float x = 2.f*ua;
+	float y = 2.f*ub;
 
 	uint32 i = 0;
 
@@ -43,7 +43,8 @@ MODULE _mandel(const int32& ua, const int32& ub, uint32& result)
 	
 	//aproximates log2(sum), for colorization
 	int32 f = u.color - (127<<3);
-	result = ((i+1)<<4) - f;
+	uint16 shade = ((i+1)<<4) - f;
+	result = (shade<<8) | (shade > 255 ? 0 : 0xC0);
 #endif
 #if 0
 	//this makes cosimulation fail if denormalized numbers are not correctly handled
