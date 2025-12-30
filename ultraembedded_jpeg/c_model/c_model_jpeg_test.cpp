@@ -1,9 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <unistd.h>
-#include <assert.h>
+//-----------------------------------------------------------------------------
+//(C) 2020 ultraembedded https://github.com/ultraembedded/core_jpeg
+//(C) 2024-2025 Victor Suarez Rovere <suarezvictor@gmail.com>
+//License: Apache-2.0
+//-----------------------------------------------------------------------------
 
 #include "jpeg_dqt.h"
 #include "jpeg_dht.h"
@@ -11,11 +10,23 @@
 #include "jpeg_bit_buffer.h"
 #include "jpeg_mcu_block.h"
 
-static jpeg_dqt        m_dqt;
-static jpeg_dht        m_dht;
-static jpeg_idct       m_idct;
-static jpeg_bit_buffer m_bit_buffer;
-static jpeg_mcu_block  m_mcu_dec(&m_bit_buffer, &m_dht);
+struct jpeg_state
+{
+	jpeg_dqt        m_dqt;
+	jpeg_dht        m_dht;
+	jpeg_idct       m_idct;
+	jpeg_bit_buffer m_bit_buffer;
+	jpeg_mcu_block  m_mcu_dec;
+
+
+	jpeg_state() :
+	 m_bit_buffer(bit_buffer, sizeof(bit_buffer)),
+	 m_mcu_dec(&m_bit_buffer, &m_dht)
+	{
+	}
+private:
+	uint8_t bit_buffer[1<<20];
+};
 
 static uint16_t m_width;
 static uint16_t m_height;
@@ -38,8 +49,8 @@ static uint8_t m_dqt_table[3];
 static uint8_t *m_output_r;
 static uint8_t *m_output_g;
 static uint8_t *m_output_b;
+static unsigned m_stride; 
 
-#define dprintf
 #define dprintf_blk(_name, _arr, _max) for (int __i=0;__i<_max;__i++) { dprintf("%s: %d -> %d\n", _name, __i, _arr[__i]); }
 
 //-----------------------------------------------------------------------------
@@ -71,12 +82,12 @@ static void ConvertYUV2RGB(int block_num, int *y, int *cb, int *cr)
 
             int _x = x_start + (i % 8);
             int _y = y_start + (i / 8);
-            int offset = (_y * m_width) + _x;
+            int offset = (_y * m_stride) + _x;
 
             dprintf("RGB: r=%d g=%d b=%d -> %d\n", r, g, b, offset);
-            m_output_r[offset] = r;
-            m_output_g[offset] = g;
-            m_output_b[offset] = b;
+            m_output_r[offset*4] = r;
+            m_output_g[offset*4] = g;
+            m_output_b[offset*4] = b;
         }
     }
     else
@@ -94,14 +105,14 @@ static void ConvertYUV2RGB(int block_num, int *y, int *cb, int *cr)
 
             int _x = x_start + (i % 8);
             int _y = y_start + (i / 8);
-            int offset = (_y * m_width) + _x;
+            int offset = (_y * m_stride) + _x;
 
             if (_x < m_width && _y < m_height)
             {
                 dprintf("RGB: r=%d g=%d b=%d -> %d [x=%d,y=%d]\n", r, g, b, offset, _x, _y);
-                m_output_r[offset] = r;
-                m_output_g[offset] = g;
-                m_output_b[offset] = b;
+                m_output_r[offset*4] = r;
+                m_output_g[offset*4] = g;
+                m_output_b[offset*4] = b;
             }
         }
     }
@@ -109,12 +120,18 @@ static void ConvertYUV2RGB(int block_num, int *y, int *cb, int *cr)
 //-----------------------------------------------------------------------------
 // DecodeImage: Decode image data section (supports 4:4:4, 4:2:0, monochrom)
 //-----------------------------------------------------------------------------
-static bool DecodeImage(void)
+static bool DecodeImage(jpeg_state& st)
 {
+	jpeg_dqt& m_dqt = st.m_dqt;
+	jpeg_dht& m_dht = st.m_dht;
+	jpeg_idct& m_idct = st.m_idct;
+	jpeg_bit_buffer& m_bit_buffer = st.m_bit_buffer;
+	jpeg_mcu_block& m_mcu_dec = st.m_mcu_dec;
+	
     int16_t dc_coeff_Y = 0;
     int16_t dc_coeff_Cb= 0;
     int16_t dc_coeff_Cr= 0;
-    int32_t sample_out[64];
+    int     sample_out[64];
     int     block_out[64];
     int     y_dct_out[4*64];
     int     cb_dct_out[64];
@@ -259,71 +276,54 @@ static bool DecodeImage(void)
 
     return true;
 }
-//-----------------------------------------------------------------------------
-// main:
-//-----------------------------------------------------------------------------
-int main(int argc, char* argv[])
+
+
+extern "C" int ultraembedded_jpeg_decompress(const uint8_t *jpegdata, size_t jpegdata_size, uint8_t *dst, unsigned stride)
 {
-    if (argc < 3)
-    {
-        printf("./jpeg src_image.jpg dst_image.ppm\n");
-        return -1;
-    }
+#warning this needs to be initialized here until calling c++ constructors from the linker script works
 
-    const char *src_image = argv[1];
-    const char *dst_image = argv[2];
+	static jpeg_state st;
+	jpeg_dqt& m_dqt = st.m_dqt;
+	jpeg_dht& m_dht = st.m_dht;
+	jpeg_idct& m_idct = st.m_idct;
+	jpeg_bit_buffer& m_bit_buffer = st.m_bit_buffer;
+	jpeg_mcu_block& m_mcu_dec = st.m_mcu_dec;
 
-    // Load source file
-    uint8_t *buf = NULL;
-    int      len = 0;
-    FILE *f = fopen(src_image, "rb");
-    if (f)
-    {
-        long size;
-
-        // Get size
-        fseek(f, 0, SEEK_END);
-        size = ftell(f);
-        rewind(f);
-
-        // Read file data in
-        buf = (uint8_t*)malloc(size);
-        assert(buf);
-        len = fread(buf, 1, size, f);
-
-        fclose(f);
-    }
-    else
-    {
-        printf("./jpeg src_image.jpg dst_image.ppm\n");
-        return -1;
-    }
+    // source data file
+    uint8_t *buf = (uint8_t *) jpegdata;
+    int      len = jpegdata_size;
 
     m_dqt.reset();
     m_dht.reset();
     m_idct.reset();
     m_mode = JPEG_UNSUPPORTED;
-    m_output_r = NULL;
-    m_output_g = NULL;
-    m_output_b = NULL;
+
+    m_output_r = dst+0;
+    m_output_g = dst+1;
+    m_output_b = dst+2;
+    m_stride = stride/4;
+
 
     uint8_t last_b = 0;
     bool decode_done = false;
     for (int i=0;i<len;)
     {
+        if(last_b == 0xFF)
+          dprintf("New section at offset %d:\r\n", i);
+
         uint8_t b = buf[i++];
 
         //-----------------------------------------------------------------------------
         // SOI: Start of image
         //-----------------------------------------------------------------------------
         if (last_b == 0xFF && b == 0xd8)
-            printf("Section: SOI\n");
+            dprintf("Section: SOI\r\n");
         //-----------------------------------------------------------------------------
         // SOF0: Indicates that this is a baseline DCT-based JPEG
         //-----------------------------------------------------------------------------
         else if (last_b == 0xFF && b == 0xc0)
         {
-            printf("Section: SOF0\n");
+            dprintf("Section: SOF0\r\n");
             int seg_start = i;
 
             // Length of the segment
@@ -337,20 +337,15 @@ int main(int argc, char* argv[])
 
             // Image width in pixels
             m_width = get_word(buf, i);
-
-            // Allocate pixel buffer
-            m_output_r = new uint8_t[m_height * m_width];
-            m_output_g = new uint8_t[m_height * m_width];
-            m_output_b = new uint8_t[m_height * m_width];
-            memset(m_output_r, 0, m_height * m_width);
-            memset(m_output_g, 0, m_height * m_width);
-            memset(m_output_b, 0, m_height * m_width);
+            
+            if(m_width != 640 || m_height != 480)
+            	return 0;
 
             // # of components (n) in frame, 1 for monochrom, 3 for colour images
             uint8_t num_comps = get_byte(buf,i);
             assert(num_comps <= 3);
 
-            printf(" x=%d, y=%d, components=%d\n", m_width, m_height, num_comps);
+            dprintf(" x=%d, y=%d, components=%d\r\n", m_width, m_height, num_comps);
             uint8_t comp_id[3];
             uint8_t comp_sample_factor[3];
             uint8_t horiz_factor[3];
@@ -369,8 +364,8 @@ int main(int argc, char* argv[])
 
                 // Third byte represents which quantization table to use for this component
                 m_dqt_table[x]        = get_byte(buf,i);
-                printf(" num: %d a: %02x b: %02x\n", comp_id[x], comp_sample_factor[x], m_dqt_table[x]);
-                printf(" horiz_factor: %d, vert_factor: %d\n", horiz_factor[x], vert_factor[x]);
+                dprintf(" num: %d a: %02x b: %02x\r\n", comp_id[x], comp_sample_factor[x], m_dqt_table[x]);
+                dprintf(" horiz_factor: %d, vert_factor: %d\r\n", horiz_factor[x], vert_factor[x]);
             }
 
             m_mode = JPEG_UNSUPPORTED;
@@ -378,7 +373,7 @@ int main(int argc, char* argv[])
             // Single component (Y)
             if (num_comps == 1)
             {
-                printf(" Mode: Monochrome\n");
+                dprintf(" Mode: Monochrome\r\n");
                 m_mode = JPEG_MONOCHROME;
             }
             // Colour image (YCbCr)
@@ -392,14 +387,14 @@ int main(int argc, char* argv[])
                         horiz_factor[2] == 1 && vert_factor[2] == 1)
                     {
                         m_mode = JPEG_YCBCR_444;
-                        printf(" Mode: YCbCr 4:4:4\n");
+                        dprintf(" Mode: YCbCr 4:4:4\r\n");
                     }
                     else if (horiz_factor[0] == 2 && vert_factor[0] == 2 &&
                              horiz_factor[1] == 1 && vert_factor[1] == 1 &&
                              horiz_factor[2] == 1 && vert_factor[2] == 1)
                     {
                         m_mode = JPEG_YCBCR_420;
-                        printf(" Mode: YCbCr 4:2:0\n");
+                        dprintf(" Mode: YCbCr 4:2:0\r\n");
                     }
                 }
             }
@@ -411,7 +406,7 @@ int main(int argc, char* argv[])
         //-----------------------------------------------------------------------------
         else if (last_b == 0xFF && b == 0xdb)
         {
-            printf("Section: DQT Table\n");
+            dprintf("Section: DQT Table\r\n");
             int seg_start = i;
             uint16_t seg_len   = get_word(buf, i);
             m_dqt.process(&buf[i], seg_len);
@@ -424,7 +419,7 @@ int main(int argc, char* argv[])
         {
             int seg_start = i;
             uint16_t seg_len   = get_word(buf, i);
-            printf("Section: DHT Table\n");
+            dprintf("Section: DHT Table\r\n");
             m_dht.process(&buf[i], seg_len);
             i = seg_start + seg_len;
         }
@@ -433,7 +428,7 @@ int main(int argc, char* argv[])
         //-----------------------------------------------------------------------------
         else if (last_b == 0xFF && b == 0xd9)
         {
-            printf("Section: EOI\n");
+            dprintf("Section: EOI\r\n");
             break;
         }
         //-----------------------------------------------------------------------------
@@ -441,12 +436,12 @@ int main(int argc, char* argv[])
         //-----------------------------------------------------------------------------
         else if (last_b == 0xFF && b == 0xda)
         {
-            printf("Section: SOS\n");
+            dprintf("Section: SOS\r\n");
             int seg_start = i;
 
             if (m_mode == JPEG_UNSUPPORTED)
             {
-                printf("ERROR: Unsupported JPEG mode\n");
+                dprintf("ERROR: Unsupported JPEG mode\r\n");
                 break;
             }
 
@@ -464,7 +459,7 @@ int main(int argc, char* argv[])
                 // Second byte denotes the Huffman table used (first four MSBs denote Huffman table for DC, and last four LSBs denote Huffman table for AC)
                 uint8_t comp_table = get_byte(buf,i);
 
-                printf(" %d: ID=%x Table=%x\n", x, comp_id, comp_table);
+                dprintf(" %d: ID=%x Table=%x\r\n", x, comp_id, comp_table);
             }
 
             // Skip bytes
@@ -477,6 +472,8 @@ int main(int argc, char* argv[])
             //-----------------------------------------------------------------------
             // Process data segment
             //-----------------------------------------------------------------------
+	        if(last_b == 0xFF)
+	          dprintf("Reset bit_buffer to %d:\r\n", len);
             m_bit_buffer.reset(len);
             while (i < len)
             {
@@ -491,45 +488,45 @@ int main(int argc, char* argv[])
                 }
             }
 
-            decode_done = DecodeImage();
+            decode_done = DecodeImage(st);
         }
         //-----------------------------------------------------------------------------
         // Unsupported / Skipped
         //-----------------------------------------------------------------------------        
         else if (last_b == 0xFF && b == 0xc2)
         {
-            printf("Section: SOF2\n");
+            dprintf("Section: SOF2\r\n");
             int seg_start = i;
             uint16_t seg_len   = get_word(buf, i);
             i = seg_start + seg_len;
 
-            printf("ERROR: Progressive JPEG not supported\n");
+            dprintf("ERROR: Progressive JPEG not supported\r\n");
             break; // ERROR: Not supported
         }
         else if (last_b == 0xFF && b == 0xdd)
         {
-            printf("Section: DRI\n");
+            dprintf("Section: DRI\r\n");
             int seg_start = i;
             uint16_t seg_len   = get_word(buf, i);
             i = seg_start + seg_len;            
         }
         else if (last_b == 0xFF && b >= 0xd0 && b <= 0xd7)
         {
-            printf("Section: RST%d\n", b - 0xd0);
+            dprintf("Section: RST%d\r\n", b - 0xd0);
             int seg_start = i;
             uint16_t seg_len   = get_word(buf, i);
             i = seg_start + seg_len;
         }
         else if (last_b == 0xFF && b >= 0xe0 && b <= 0xef)
         {
-            printf("Section: APP%d\n", b - 0xe0);
+            dprintf("Section: APP%d\r\n", b - 0xe0);
             int seg_start = i;
             uint16_t seg_len   = get_word(buf, i);
             i = seg_start + seg_len;
         }
         else if (last_b == 0xFF && b == 0xfe)
         {
-            printf("Section: COM\n");
+            dprintf("Section: COM\r\n");
             int seg_start = i;
             uint16_t seg_len   = get_word(buf, i);
             i = seg_start + seg_len;
@@ -540,30 +537,10 @@ int main(int argc, char* argv[])
 
     if (decode_done)
     {
-        FILE *f = fopen(dst_image, "w");
-        if (f)
-        {
-            fprintf(f, "P6\n");
-            fprintf(f, "%d %d\n", m_width, m_height);
-            fprintf(f, "255\n");
-            for (int y=0;y<m_height;y++)
-                for (int x=0;x<m_width;x++)
-                {
-                    putc(m_output_r[(y*m_width)+x], f);
-                    putc(m_output_g[(y*m_width)+x], f);
-                    putc(m_output_b[(y*m_width)+x], f);
-                }
-            fclose(f);
-        }
-        else
-        {
-            fprintf(stderr, "ERROR: Could not write file\n");
-            decode_done = false;
-        }
+        dprintf("Done decoding\r\n");
     }
+    else
+        dprintf("ERROR: Can't decode\r\n");
 
-    if (m_output_r) delete [] m_output_r;
-    if (m_output_g) delete [] m_output_g;
-    if (m_output_b) delete [] m_output_b;
     return decode_done ? 0 : -1;
 }

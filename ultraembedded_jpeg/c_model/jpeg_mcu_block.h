@@ -38,7 +38,7 @@ public:
     // decode: Run huffman entropy decoder on input stream, expand to DC + upto 
     //         63 AC samples.
     //-----------------------------------------------------------------------------
-    int decode(int table_idx, int16_t &olddccoeff, int32_t *block_out)
+    int decode(int table_idx, int16_t &olddccoeff, int *block_out)
     {
         int samples = 0;
 
