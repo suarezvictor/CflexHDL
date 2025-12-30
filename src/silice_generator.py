@@ -120,9 +120,13 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         t = self.indent()
         register = has_type_qualifier(decltyp, "register")
         if decltyp.endswith("&") and not decltyp.startswith("const"):
-            decltyp = "output" + ("!" if register else "") + "\t" + remove_type_qualifiers(decltyp[:-2])
+            decltyp = remove_type_qualifiers(decltyp[:-2])
+            if decltyp == "float" : decltyp = "uint32" #fixme: use map_type
+            decltyp = "output" + ("!" if register else "") + "\t" + decltyp
         else:
-            decltyp = "input\t" + remove_type_qualifiers(decltyp)
+            if decltyp == "float" : decltyp = "uint32" #fixme: use map_type
+            if decltyp[-1] == "&": decltyp = remove_type_qualifiers(decltyp[:-2])
+            decltyp = "input\t" + decltyp
         s = "\n"+t + decltyp + "\t" + name
         self.unindent()
         return s

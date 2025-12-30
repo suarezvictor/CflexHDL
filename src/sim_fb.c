@@ -10,7 +10,6 @@
 
 bool fb_init(unsigned width, unsigned height, bool vsync, fb_handle_t *handle)
 {
-    int texture_format;
     if(SDL_Init(SDL_INIT_VIDEO) < 0)
      return false;
 
@@ -21,8 +20,11 @@ bool fb_init(unsigned width, unsigned height, bool vsync, fb_handle_t *handle)
     handle->renderer = SDL_CreateRenderer(handle->win, -1, vsync ? SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_PRESENTVSYNC : 0);
     if (!handle->renderer)
       return false;
-
+#ifndef SDL_PIXELFORMAT
     handle->texture = SDL_CreateTexture(handle->renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_TARGET, width, height);
+#else
+    handle->texture = SDL_CreateTexture(handle->renderer, SDL_PIXELFORMAT, SDL_TEXTUREACCESS_TARGET, width, height);
+#endif
     if (!handle->texture)
       return false;
 
@@ -60,3 +62,35 @@ void fb_deinit(fb_handle_t *handle)
     SDL_DestroyWindow(handle->win);
     handle->win = NULL;
 }
+
+void fb_screenshot_ppm(const char *filename, const uint32_t *pixels, int width, int height, size_t stride_bytes)
+{
+    FILE *f = fopen(filename, "wb");
+    if (f == NULL)
+    {
+        perror("fopen");
+        return;
+    }
+
+    fprintf(f, "P6\n%d %d\n255\n", width, height); //header
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            uint32_t p = pixels[x];
+
+            uint8_t r = p >> 0;
+            uint8_t g = p >> 8;
+            uint8_t b = p >> 16;
+
+            fputc(r, f);
+            fputc(g, f);
+            fputc(b, f);
+        }
+        pixels += stride_bytes/sizeof(uint32_t);
+    }
+
+    fclose(f);
+}
+

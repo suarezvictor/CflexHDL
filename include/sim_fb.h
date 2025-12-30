@@ -18,6 +18,8 @@ bool fb_init(unsigned width, unsigned height, bool vsync, fb_handle_t *handle);
 void fb_update(fb_handle_t *handle, const void *buf, size_t stride_bytes);
 void fb_deinit(fb_handle_t *handle);
 bool fb_should_quit(void);  
+void fb_screenshot_ppm(const char *filename, const uint32_t *pixels, int width, int height, size_t stride_bytes);
+
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C" 
