@@ -1,3 +1,8 @@
+// (C) 2020 Ultraembedded
+// (C) 2025 Victor Suarez Rovere <suarezvictor@gmail.com>
+// SPDX-License-Identifier: Apache-2.0
+// https://github.com/ultraembedded/core_jpeg
+
 #ifndef JPEG_BIT_BUFFER_H
 #define JPEG_BIT_BUFFER_H
 
@@ -7,7 +12,9 @@
 #include <string.h>
 #include <assert.h>
 
-#define dprintf
+#ifndef dprintf
+#define dprintf(...)
+#endif
 
 #ifndef TEST_HOOKS_BITBUFFER
 #define TEST_HOOKS_BITBUFFER(x)
@@ -23,26 +30,25 @@
 class jpeg_bit_buffer
 {
 public:
-    jpeg_bit_buffer() 
+    jpeg_bit_buffer(uint8_t *buffer, size_t buffer_size) 
     {
-        m_buffer = NULL;
-        reset(-1);
+        reset(buffer, buffer_size);
     }
 
-    void reset(int max_size = -1)
+    void reset(uint8_t *buffer, int max_size)
     {
-        if (m_buffer)
-        {
-            delete [] m_buffer;
-            m_buffer = NULL;
-        }
+        m_buffer = buffer;
+        m_max_size = max_size;
+        reset(max_size);
+    }
 
-        if (max_size <= 0)
-            m_max_size = 1 << 20;
-        else
-            m_max_size = max_size;
-
-        m_buffer = new uint8_t[m_max_size];
+    void reset(int max_size)
+    {
+    	if(m_max_size < max_size)
+    	{
+    	   dprintf("bad size, max %d, requested %d\n", m_max_size, max_size);
+    	}
+        m_max_size = max_size;
         memset(m_buffer, 0, m_max_size);
         m_wr_offset = 0;
         m_last      = 0;

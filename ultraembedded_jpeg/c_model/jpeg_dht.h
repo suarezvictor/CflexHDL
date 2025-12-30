@@ -1,3 +1,8 @@
+// (C) 2020 Ultraembedded
+// (C) 2025 Victor Suarez Rovere <suarezvictor@gmail.com>
+// SPDX-License-Identifier: Apache-2.0
+// https://github.com/ultraembedded/core_jpeg
+
 #ifndef JPEG_DHT_H
 #define JPEG_DHT_H
 
@@ -16,7 +21,9 @@
 #define DHT_TABLE_CX_AC     0x11
 #define DHT_TABLE_CX_AC_IDX 3
 
-#define dprintf
+#ifndef dprintf
+#define dprintf(...)
+#endif
 
 //-----------------------------------------------------------------------------
 // jpeg_dqt:

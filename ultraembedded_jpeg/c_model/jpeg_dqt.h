@@ -1,3 +1,8 @@
+// (C) 2020 Ultraembedded
+// (C) 2025 Victor Suarez Rovere <suarezvictor@gmail.com>
+// SPDX-License-Identifier: Apache-2.0
+// https://github.com/ultraembedded/core_jpeg
+
 #ifndef JPEG_DQT_H
 #define JPEG_DQT_H
 
@@ -21,7 +26,9 @@ static const int m_zigzag_table[]=
     0
 };
 
-#define dprintf
+#ifndef dprintf
+#define dprintf(...)
+#endif
 
 //-----------------------------------------------------------------------------
 // jpeg_dqt:
