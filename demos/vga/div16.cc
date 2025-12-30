@@ -1,4 +1,5 @@
-#include "cflexhdl.h"
+#include "types.h"
+#include "moduledef.h"
 
 #define CFLEX_USE_DIV_NEWTON //newton algorithm is faster when compiled and when verilated
 
@@ -23,7 +24,7 @@ uint16 fixed16_div_newton(uint16 D, uint16 X)
   int16 c;
   uint32 xb;
   a = D*X >> 16;
-  b = (a^32767)+1;//0x8000u - a;
+  b = (a^0x7FFF)+1;//0x8000u - a;
   xb = unsiged16_times_signed16(X, b); //X*b; //unsigned by signed bring issues in synthesys
   c = xb >> (16-1); //TODO: use a function more suited to fixed point to avoid 32-bit results
   return X + c;
@@ -34,7 +35,7 @@ uint16 fixed16_approx_reciprocal_bounded_half(uint16 D) //0x8000=0.5 to 0xFFFF=~
   uint16 X0;
   uint16 X1;
   uint16 X2;
-  uint16 X = D^/*0x7FFF*/32767; //approximate negative and offset, good enough for an initial guess
+  uint16 X = D^0x7FFF; //approximate negative and offset, good enough for an initial guess
   X0 = fixed16_newton_initial_estimate(X);
   X1 = fixed16_div_newton(D, X0);
   X2 = fixed16_div_newton(D, X1); //this further step may not be needed
@@ -46,13 +47,13 @@ uint32 fixed16_div_aprox_32(uint16 N, const uint16& D0)
   uint32 R0, R1, R2, R3, R4;
   uint32 D1, D2, D3, D4;
   uint1 C0, C1, C2, C3;
-  C0 = (D0 & (255<<8)) == 0;
+  C0 = (D0 & 0xFF00) == 0;
   D1 = C0 ? D0 << 8 : D0;
-  C1 = (D1 & (15<<12)) == 0;
+  C1 = (D1 & 0xF000) == 0;
   D2 = C1 ? D1 << 4: D1;
-  C2 = (D2 & (3<<14)) == 0;
+  C2 = (D2 & 0xC000) == 0;
   D3 = C2 ? D2 << 2: D2;
-  C3 = (D3 & (1<<15)) == 0;
+  C3 = (D3 & 0x8000) == 0;
   D4 = C3 ? D3 << 1: D3; 
   uint16 f;
   f = fixed16_approx_reciprocal_bounded_half(D4);
@@ -84,14 +85,14 @@ static MODULE _div16(const uint16& num, const uint16& den, uint16& ret)
   uint16 n;
   n = num;
   ret = 0;
-  for(mask = 32768; mask != 0; mask = mask >> 1)
+  for(mask = 0x8000; mask != 0; mask = mask >> 1)
   {
     R = (R << 1) | (n >> 15);
     n = n << 1;
     RD = R - den;
 
     add_clk();
-    if (!(RD & 32768))
+    if (!(RD & 0x8000))
     {
       R = RD;
       ret = ret | mask;

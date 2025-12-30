@@ -34,8 +34,8 @@ MODULE frame_display(
        
 		uint32 i = 0;
 		_mandel(xc, yc, i);
-		pix_r = i == 16 ? 0 : 0xC0;
-		pix_g = i << 4;
+		pix_r = i < 256 ? 0xC0 : 0;
+		pix_g = i;
 		pix_b = 0;
 
          wait_clk();

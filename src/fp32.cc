@@ -316,7 +316,7 @@ MODULE _float_to_int(const uint32& a, int32& result)
     }
     else
     {
-       uint32 mant = i.frac | (1 << 23);
+       uint32 mant = i.frac | (1 << 23); //TODO: handle rounding
        int32 value;
 
        if(shift >= 0)
