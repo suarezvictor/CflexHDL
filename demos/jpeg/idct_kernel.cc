@@ -2,11 +2,11 @@
 //(C) 2025 Victor Suarez Rovere <suarezvictor@gmail.com>
 //(C) 2020 Ultraembedded https://github.com/ultraembedded/core_jpeg
 
-#include "silice_compat.h"
+#include "cflexhdl.h"
 #define int int32
 #define short int16
 
-void idct_kernel(
+void _idct_kernel(
 	const int& data_in_0,
 	const int& data_in_1,
 	const int& data_in_2,
@@ -25,22 +25,43 @@ void idct_kernel(
 	int& data_out_7
 )
 {
-    short C1 = 4017; // cos( pi/16)*4096
-    short C2 = 3784; // cos(2pi/16)*4096
-    short C3 = 3406; // cos(3pi/16)*4096
-    short C4 = 2896; // cos(4pi/16)*4096
-    short C5 = 2276; // cos(5pi/16)*4096
-    short C6 = 1567; // cos(6pi/16)*4096
-    short C7 = 799;  // cos(7pi/16)*4096
+    //constant factors: cos(N*pi/16)*2^12
+    const short C1 = 4017;
+    const short C2 = 3784;
+    const short C3 = 3406;
+    const short C4 = 2896;
+    const short C5 = 2276;
+    const short C6 = 1567;
+    const short C7 =  799;
 
-	int s0 = (data_in_0 + data_in_4)       * C4;
-	int s1 = (data_in_0 - data_in_4)       * C4;
-	int s3 = (data_in_2 * C2) + (data_in_6 * C6);
-	int s2 = (data_in_2 * C6) - (data_in_6 * C2);
-	int s7 = (data_in_1 * C1) + (data_in_7 * C7);
-	int s4 = (data_in_1 * C7) - (data_in_7 * C1);
-	int s6 = (data_in_5 * C5) + (data_in_3 * C3);
-	int s5 = (data_in_5 * C3) - (data_in_3 * C5);
+	int s0a = data_in_0 * C4; //same as s1a
+	int s3a = data_in_2 * C2;
+	int s2a = data_in_2 * C6;
+	int s7a = data_in_1 * C1;
+	int s4a = data_in_1 * C7;
+	int s6a = data_in_5 * C5;
+	int s5a = data_in_5 * C3;
+
+    pipeline_stage();
+
+	int s0b = data_in_4 * C4; //same as s1b
+	int s3b = data_in_6 * C6;
+	int s2b = data_in_6 * C2;
+	int s7b = data_in_7 * C7;
+	int s4b = data_in_7 * C1;
+	int s6b = data_in_3 * C3;
+	int s5b = data_in_3 * C5;
+
+    pipeline_stage();
+
+	int s0 = s0a + s0b;
+	int s1 = s0a - s0b;
+	int s2 = s2a - s2b;
+	int s3 = s3a + s3b;
+	int s4 = s4a - s4b;
+	int s5 = s5a - s5b;
+	int s6 = s6a + s6b;
+	int s7 = s7a + s7b;
 
 	int t0 = s0 + s3;
 	int t3 = s0 - s3;
@@ -51,8 +72,12 @@ void idct_kernel(
 	int t7 = s7 + s6;
 	int t6 = s7 - s6;
 
+    pipeline_stage();
+
 	int r5 = ((t6 - t5) * 181) >> 8; // 1/sqrt(2)
 	int r6 = ((t5 + t6) * 181) >> 8; // 1/sqrt(2)
+
+    pipeline_stage();
 
 	data_out_0 = (t0 + t7) >> 11;
 	data_out_1 = (t1 + r6) >> 11;

@@ -517,7 +517,7 @@ class CFlexClangParser:
                 fname = bin_operator_to_name(ltyp, op, rtyp)
                 return self.generator.generate_call(fname, childrepr)
 
-        return self.generator.generate_binary_operator(lhs, op, rhs) #gets here if RHS has no-overloaded operators
+        return self.generator.generate_binary_operator(lhs, op, rhs, ltyp) #gets here if RHS has no-overloaded operators
 
 
     def onUNARY_OPERATOR(self, c, childs, childrepr, tokens):

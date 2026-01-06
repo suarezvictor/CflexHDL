@@ -6,6 +6,7 @@
 #include "silice_compat.h"
 #include "moduledef.h"
 
+#ifndef CFLEXHDL_SKIP_STDINT_DEFS
 //TODO: add missing widths
 typedef uint1 uint1_t;
 typedef uint4 uint4_t;
@@ -21,6 +22,8 @@ typedef uint32 uint32_t;
 
 typedef int8 int8_t;
 typedef int10 int10_t;
+#endif
+
 #define uintN_internal(n) uint##n
 #define uintN(n) uintN_internal(n)
 

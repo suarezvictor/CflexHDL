@@ -70,7 +70,7 @@ class CFlexPipelineCGenerator(CFlexCGenerator):
           return "//" + s
         return s
 
-    def generate_binary_operator(self, lhs, op, rhs): #replace &&, || by &, |
+    def generate_binary_operator(self, lhs, op, rhs, ltyp): #replace &&, || by &, |
         if op in ["||", "&&"]:
         	lhs = "((" + lhs + ")!=0)"
         	rhs = "((" + rhs + ")!=0)"

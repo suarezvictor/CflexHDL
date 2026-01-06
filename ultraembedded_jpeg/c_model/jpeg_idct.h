@@ -12,6 +12,25 @@
 #include <string.h>
 #include <assert.h>
 
+void idct_kernel(
+	const int& data_in_0,
+	const int& data_in_1,
+	const int& data_in_2,
+	const int& data_in_3,
+	const int& data_in_4,
+	const int& data_in_5,
+	const int& data_in_6,
+	const int& data_in_7,
+	int& data_out_0,
+	int& data_out_1,
+	int& data_out_2,
+	int& data_out_3,
+	int& data_out_4,
+	int& data_out_5,
+	int& data_out_6,
+	int& data_out_7
+);
+
 //-----------------------------------------------------------------------------
 // jpeg_idct:
 //-----------------------------------------------------------------------------
@@ -36,73 +55,65 @@ public:
         // X - Rows
         for(int i=0;i<8;i++)
         {
-            s0 = (data_in[0] + data_in[4])       * C4;
-            s1 = (data_in[0] - data_in[4])       * C4;
-            s3 = (data_in[2] * C2) + (data_in[6] * C6);
-            s2 = (data_in[2] * C6) - (data_in[6] * C2);
-            s7 = (data_in[1] * C1) + (data_in[7] * C7);
-            s4 = (data_in[1] * C7) - (data_in[7] * C1);
-            s6 = (data_in[5] * C5) + (data_in[3] * C3);
-            s5 = (data_in[5] * C3) - (data_in[3] * C5);
-
+			//idct_kernel((int*)data_in, (int*)temp_buf);
+			idct_kernel(
+			  data_in[0],
+			  data_in[1],
+			  data_in[2],
+			  data_in[3],
+			  data_in[4],
+			  data_in[5],
+			  data_in[6],
+			  data_in[7],
+			  temp_buf[0],
+			  temp_buf[1],
+			  temp_buf[2],
+			  temp_buf[3],
+			  temp_buf[4],
+			  temp_buf[5],
+			  temp_buf[6],
+			  temp_buf[7]
+			  );
+			
             // Next row
             data_in += 8;
-
-            t0 = s0 + s3;
-            t3 = s0 - s3;
-            t1 = s1 + s2;
-            t2 = s1 - s2;
-            t4 = s4 + s5;
-            t5 = s4 - s5;
-            t7 = s7 + s6;
-            t6 = s7 - s6;
-
-            s6 = (t5 + t6) * 181 / 256; // 1/sqrt(2)
-            s5 = (t6 - t5) * 181 / 256; // 1/sqrt(2)
-
-            *temp_buf++ = (t0 + t7) >> 11;
-            *temp_buf++ = (t1 + s6) >> 11;
-            *temp_buf++ = (t2 + s5) >> 11;
-            *temp_buf++ = (t3 + t4) >> 11;
-            *temp_buf++ = (t3 - t4) >> 11;
-            *temp_buf++ = (t2 - s5) >> 11;
-            *temp_buf++ = (t1 - s6) >> 11;
-            *temp_buf++ = (t0 - t7) >> 11;
+            temp_buf += 8;
         }
 
         // Y - Columns
         temp_buf = working_buf;
         for(int i=0;i<8;i++)
         {
-            s0 = (temp_buf[0] + temp_buf[32])     * C4;
-            s1 = (temp_buf[0] - temp_buf[32])     * C4;
-            s3 = temp_buf[16] * C2 + temp_buf[48] * C6;
-            s2 = temp_buf[16] * C6 - temp_buf[48] * C2;
-            s7 = temp_buf[8]  * C1 + temp_buf[56] * C7;
-            s4 = temp_buf[8]  * C7 - temp_buf[56] * C1;
-            s6 = temp_buf[40] * C5 + temp_buf[24] * C3;
-            s5 = temp_buf[40] * C3 - temp_buf[24] * C5;
+            int col[8] = {temp_buf[0], temp_buf[8], temp_buf[16], temp_buf[24], temp_buf[32], temp_buf[40], temp_buf[48], temp_buf[56]};
+            int out[8];
+			//idct_kernel(col, out);
+			idct_kernel(
+			  col[0],
+			  col[1],
+			  col[2],
+			  col[3],
+			  col[4],
+			  col[5],
+			  col[6],
+			  col[7],
+			  out[0],
+			  out[1],
+			  out[2],
+			  out[3],
+			  out[4],
+			  out[5],
+			  out[6],
+			  out[7]
+			  );
 
-            t0 = s0 + s3;
-            t1 = s1 + s2;
-            t2 = s1 - s2;
-            t3 = s0 - s3;
-            t4 = s4 + s5;
-            t5 = s4 - s5;
-            t6 = s7 - s6;
-            t7 = s6 + s7;
-
-            s5 = (t6 - t5) * 181 / 256; // 1/sqrt(2)
-            s6 = (t5 + t6) * 181 / 256; // 1/sqrt(2)
-
-            data_out[0]  = ((t0 + t7) >> 15);
-            data_out[56] = ((t0 - t7) >> 15);
-            data_out[8]  = ((t1 + s6) >> 15);
-            data_out[48] = ((t1 - s6) >> 15);
-            data_out[16] = ((t2 + s5) >> 15);
-            data_out[40] = ((t2 - s5) >> 15);
-            data_out[24] = ((t3 + t4) >> 15);
-            data_out[32] = ((t3 - t4) >> 15);
+            data_out[0]  = out[0] >> 4;
+            data_out[8]  = out[1] >> 4;
+            data_out[16] = out[2] >> 4;
+            data_out[24] = out[3] >> 4;
+            data_out[32] = out[4] >> 4;
+            data_out[40] = out[5] >> 4;
+            data_out[48] = out[6] >> 4;
+            data_out[56] = out[7] >> 4;
             
             temp_buf++;
             data_out++;
@@ -110,13 +121,6 @@ public:
         data_out -= 8;
     }
 
-    static const int C1 = 4017; // cos( pi/16) x4096
-    static const int C2 = 3784; // cos(2pi/16) x4096
-    static const int C3 = 3406; // cos(3pi/16) x4096
-    static const int C4 = 2896; // cos(4pi/16) x4096
-    static const int C5 = 2276; // cos(5pi/16) x4096
-    static const int C6 = 1567; // cos(6pi/16) x4096
-    static const int C7 = 799;  // cos(7pi/16) x4096
 };
 
 #endif

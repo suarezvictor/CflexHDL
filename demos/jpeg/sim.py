@@ -134,6 +134,55 @@ class _CRG(Module):
             self.comb += cd.rst.eq(int_rst)
 
 
+class Accel(Module, AutoCSR):
+    def __init__(self):
+        self.name = "idct_kerlen"
+        self.din0 = CSRStorage(32)
+        self.din1 = CSRStorage(32)
+        self.din2 = CSRStorage(32)
+        self.din3 = CSRStorage(32)
+        self.din4 = CSRStorage(32)
+        self.din5 = CSRStorage(32)
+        self.din6 = CSRStorage(32)
+        self.din7 = CSRStorage(32)
+        self.dout0 = CSRStatus(32)
+        self.dout1 = CSRStatus(32)
+        self.dout2 = CSRStatus(32)
+        self.dout3 = CSRStatus(32)
+        self.dout4 = CSRStatus(32)
+        self.dout5 = CSRStatus(32)
+        self.dout6 = CSRStatus(32)
+        self.dout7 = CSRStatus(32)
+
+        self.run = CSRStorage(reset=0)
+        self.done  = CSRStatus()
+
+    def do_finalize(self):
+        super().do_finalize()
+        self.specials += Instance("M_idct_kernel",
+            i_in_data_in_0 = self.din0.storage,
+            i_in_data_in_1 = self.din1.storage,
+            i_in_data_in_2 = self.din2.storage,
+            i_in_data_in_3 = self.din3.storage,
+            i_in_data_in_4 = self.din4.storage,
+            i_in_data_in_5 = self.din5.storage,
+            i_in_data_in_6 = self.din6.storage,
+            i_in_data_in_7 = self.din7.storage,
+            o_out_data_out_0 = self.dout0.status,
+            o_out_data_out_1 = self.dout1.status,
+            o_out_data_out_2 = self.dout2.status,
+            o_out_data_out_3 = self.dout3.status,
+            o_out_data_out_4 = self.dout4.status,
+            o_out_data_out_5 = self.dout5.status,
+            o_out_data_out_6 = self.dout6.status,
+            o_out_data_out_7 = self.dout7.status,
+            i_in_run  = self.run.storage,
+            o_out_done = self.done.status,
+            o_out_clock = Signal(),
+            i_reset = ResetSignal("sys"),
+            i_clock = ClockSignal("sys")
+        )
+
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
@@ -191,6 +240,9 @@ class SimSoC(SoCCore):
             self.submodules.videophy = VideoPHYModel(video_pads, clock_domain="pix")
             self.add_video_framebuffer(phy=self.videophy, timings="640x480@60Hz", format="rgb888", clock_domain="pix") #
             self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
+
+        # Accelerator --------------------------------------------------------------------------------------
+        self.submodules.idct_kernel = Accel()
 
 
 
@@ -266,6 +318,7 @@ def main():
         soc.add_constant("ROM_BOOT_ADDRESS", ram_boot_address)
 
     soc.add_constant("LITEX_SIMULATION") #this is to make the software know if it's simulation
+    soc.platform.add_source("build/top_instance.v")
 
 
     builder = Builder(soc, **builder_kwargs)

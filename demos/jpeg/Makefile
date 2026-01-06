@@ -48,9 +48,11 @@ bitstream: $(BOARD)
 
 verilog: $(BUILD_DIR)/../top_instance.v
 
-$(BUILD_DIR)/../top_instance.v: $(MAIN_SRC).cc
+$(BUILD_DIR)/top_instance.si: $(MAIN_SRC).cc
 	cpp $(INCLUDE) -DCFLEX_PARSER $(MAIN_SRC).cc -E -o $(BUILD_DIR)/top_instance.cpp
 	$(GENERATOR) $(BUILD_DIR)/top_instance.cpp > $(BUILD_DIR)/top_instance.si
+
+$(BUILD_DIR)/../top_instance.v: $(BUILD_DIR)/top_instance.si
 	silice -f ../../external/silice/bare.v $(BUILD_DIR)/top_instance.si -o $(BUILD_DIR)/../top_instance.v --export $(MAIN_SRC)
 
 sample640x480.c: sample640x480.jpeg

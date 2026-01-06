@@ -125,6 +125,11 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         t = self.unindent()
         return "\n" + t + "{" + s +"\n"+t + "}"
 
+    def generate_binary_operator(self, lhs, op, rhs, ltyp):
+        if op == ">>" and ltyp in ["char", "short", "int", "long"]: #test signedness for aritmethic shift
+            op = ">>>"
+        return lhs + " " + op + " " + rhs
+
     def generate_assignment_operator(self, lhs, op, rhs, ltyp):
         callname = self.callinstance(rhs)
         if callname is not None:
@@ -150,6 +155,7 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         return s + "(\n" + bindings + "\n" + self.ind + ");"
 
     def generate_var_decl(self, decltyp, name, has_value, valueexpr):
+        if decltyp.startswith("const "): decltyp = decltyp[6:];
         s = "\n" + self.ind + decltyp + " " + name
         value =  self.generate_expr(valueexpr) if has_value else "uninitialized"
         return s + " = " + value + ";"
