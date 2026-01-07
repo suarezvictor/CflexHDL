@@ -2274,6 +2274,100 @@ mcu_done:
 //
 // Inverse DCT
 //
+
+
+static inline void JPEGIDCT_kernel(
+	short data_in_0,
+	short data_in_1,
+	short data_in_2,
+	short data_in_3,
+	short data_in_4,
+	short data_in_5,
+	short data_in_6,
+	short data_in_7,
+	short& data_out_0,
+	short& data_out_1,
+	short& data_out_2,
+	short& data_out_3,
+	short& data_out_4,
+	short& data_out_5,
+	short& data_out_6,
+	short& data_out_7,
+	short is_y
+)
+{
+    signed int tmp6,tmp7,tmp10,tmp11,tmp12,tmp13;
+    signed int z5,z10,z11,z12,z13;
+    signed int tmp0,tmp1,tmp2,tmp3,tmp4,tmp5;
+
+    tmp0 = data_in_0;
+    tmp2 = data_in_2; // get 4th row
+    tmp1 = data_in_1; // get 2nd row
+    tmp3 = data_in_3; // get 6th row
+    // odd part
+    tmp5 = data_in_5; // get 3rd row
+    tmp6 = data_in_6; // get 5th row
+    tmp4 = data_in_4; // get 1st row
+    tmp7 = data_in_7; // get 7th row
+
+
+    tmp10 = tmp0 + tmp2;
+    tmp11 = tmp0 - tmp2;
+    tmp13 = tmp1 + tmp3;
+    tmp12 = (((tmp1 - tmp3) * 362) >> 8) - tmp13;  // 362>>8 = 1.414213562
+    tmp0 = tmp10 + tmp13;
+    tmp3 = tmp10 - tmp13;
+    tmp1 = tmp11 + tmp12;
+    tmp2 = tmp11 - tmp12;
+
+    z13 = tmp6 + tmp5;
+    z10 = tmp6 - tmp5;
+    z11 = tmp4 + tmp7;
+    z12 = tmp4 - tmp7;
+    tmp7 = z11 + z13;
+    tmp11 = (((z11 - z13) * 362) >> 8);  // 362>>8 = 1.414213562
+    z5 = (((z10 + z12) * 473) >> 8);  // 473>>8 = 1.8477
+    tmp12 = ((z10 * -669)>>8) + z5; // -669>>8 = -2.6131259
+    tmp6 = tmp12 - tmp7;
+    tmp5 = tmp11 - tmp6;
+    tmp10 = ((z12 * 277)>>8) - z5; // 277>>8 = 1.08239
+    tmp4 = tmp10 + tmp5;
+
+    data_out_0 = (short)(tmp0 + tmp7);    // row0
+    data_out_1 = (short)(tmp1 + tmp6);  // row 1
+    data_out_2 = (short)(tmp2 + tmp5); // row 2
+    data_out_3 = (short)(tmp3 - tmp4); // row 3
+    data_out_4 = (short)(tmp3 + tmp4); // row 4
+    data_out_5 = (short)(tmp2 - tmp5); // row 5
+    data_out_6 = (short)(tmp1 - tmp6); // row 6
+    data_out_7 = (short)(tmp0 - tmp7); // row 7
+}
+
+static inline void JPEGIDCT_internal(short *pMCUSrc, const short *pQuant)
+{
+    JPEGIDCT_kernel
+    (
+		pMCUSrc[0] * pQuant[0],
+		pMCUSrc[16] * pQuant[16],
+		pMCUSrc[32] * pQuant[32],
+		pMCUSrc[48] * pQuant[48],
+		pMCUSrc[8] * pQuant[8],
+		pMCUSrc[24] * pQuant[24],
+		pMCUSrc[40] * pQuant[40],
+		pMCUSrc[56] * pQuant[56],
+
+		pMCUSrc[0*8],
+		pMCUSrc[1*8],
+		pMCUSrc[2*8],
+		pMCUSrc[3*8],
+		pMCUSrc[4*8],
+		pMCUSrc[5*8],
+		pMCUSrc[6*8],
+		pMCUSrc[7*8],
+		0
+	);
+}
+
 static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable)
 {
     int iRow;
@@ -2557,122 +2651,7 @@ int16x8_t mmxZ5, mmxZ10, mmxZ11, mmxZ12, mmxZ13;
         if (u16MCUFlags & (1<<iCol)) // column has data in it
         {
             u16MCUFlags &= ~(1<<iCol); // unmark the col after done
-            if ((u16MCUFlags & 0x2000) == 0) // simpler calculations if only half populated
-            {
-                // even part
-                tmp10 = pMCUSrc[iCol] * pQuant[iCol];
-                tmp1 = pMCUSrc[iCol+16] * pQuant[iCol+16]; // get 2nd row
-                tmp12 = ((tmp1*106)>>8); // used to be 362 - 1 (256)
-                tmp0 = tmp10 + tmp1;
-                tmp3 = tmp10 - tmp1;
-                tmp1 = tmp10 + tmp12;
-                tmp2 = tmp10 - tmp12;
-                // odd part
-                tmp4 = pMCUSrc[iCol+8] * pQuant[iCol+8]; // get 1st row
-                tmp5 = pMCUSrc[iCol+24];
-                if (tmp5) // this value is usually 0
-                {
-                    tmp5 *= pQuant[iCol+24]; // get 3rd row
-                    tmp7 = tmp4 + tmp5;
-                    tmp11 = (((tmp4 - tmp5) * 362) >> 8);  // 362>>8 = 1.414213562
-                    z5 = (((tmp4-tmp5) * 473) >> 8);  // 473>>8 = 1.8477
-                    tmp12 = ((-tmp5 * -669)>>8) + z5; // -669>>8 = -2.6131259
-                    tmp6 = tmp12 - tmp7;
-                    tmp5 = tmp11 - tmp6;
-                    tmp10 = ((tmp4 * 277)>>8) - z5; // 277>>8 = 1.08239
-                    tmp4 = tmp10 + tmp5;
-                }
-                else // simpler case when we only have 1 odd row to calculate
-                {
-                    tmp7 = tmp4;
-                    tmp5 = (145*tmp4) >> 8;
-                    tmp6 = (217*tmp4) >> 8;
-                    tmp4 = (-51*tmp4) >> 8;
-                }
-                pMCUSrc[iCol] = (short)(tmp0 + tmp7);    // row0
-                pMCUSrc[iCol+8] = (short)(tmp1 + tmp6);  // row 1
-                pMCUSrc[iCol+16] = (short)(tmp2 + tmp5); // row 2
-                pMCUSrc[iCol+24] = (short)(tmp3 - tmp4); // row 3
-                pMCUSrc[iCol+32] = (short)(tmp3 + tmp4); // row 4
-                pMCUSrc[iCol+40] = (short)(tmp2 - tmp5); // row 5
-                pMCUSrc[iCol+48] = (short)(tmp1 - tmp6); // row 6
-                pMCUSrc[iCol+56] = (short)(tmp0 - tmp7); // row 7
-            }
-            else // need to do full column calculation
-            {
-                // even part
-                tmp0 = pMCUSrc[iCol] * pQuant[iCol];
-                tmp2 = pMCUSrc[iCol+32]; // get 4th row
-                if (tmp2) // 4th row is most likely 0
-                {
-                    tmp2 = tmp2 * pQuant[iCol+32];
-                    tmp10 = tmp0 + tmp2;
-                    tmp11 = tmp0 - tmp2;
-                }
-                else
-                {
-                    tmp10 = tmp11 = tmp0;
-                }
-                tmp1 = pMCUSrc[iCol+16] * pQuant[iCol+16]; // get 2nd row
-                tmp3 = pMCUSrc[iCol+48]; // get 6th row
-                if (tmp3) // 6th row is most likely 0
-                {
-                    tmp3 = tmp3 * pQuant[iCol+48];
-                    tmp13 = tmp1 + tmp3;
-                    tmp12 = (((tmp1 - tmp3) * 362) >> 8) - tmp13;  // 362>>8 = 1.414213562
-                }
-                else
-                {
-                    tmp13 = tmp1;
-                    tmp12 = ((tmp1*362)>>8) - tmp1;
-                }
-                tmp0 = tmp10 + tmp13;
-                tmp3 = tmp10 - tmp13;
-                tmp1 = tmp11 + tmp12;
-                tmp2 = tmp11 - tmp12;
-                // odd part
-                tmp5 = pMCUSrc[iCol+24] * pQuant[iCol+24]; // get 3rd row
-                tmp6 = pMCUSrc[iCol+40]; // get 5th row
-                if (tmp6) // very likely that row 5 = 0
-                {
-                    tmp6 = tmp6 * pQuant[iCol+40];
-                    z13 = tmp6 + tmp5;
-                    z10 = tmp6 - tmp5;
-                }
-                else
-                {
-                    z13 = tmp5;
-                    z10 = -tmp5;
-                }
-                tmp4 = pMCUSrc[iCol+8] * pQuant[iCol+8]; // get 1st row
-                tmp7 = pMCUSrc[iCol+56]; // get 7th row
-                if (tmp7) // very likely that row 7 = 0
-                {
-                    tmp7 = tmp7 * pQuant[iCol+56];
-                    z11 = tmp4 + tmp7;
-                    z12 = tmp4 - tmp7;
-                }
-                else
-                {
-                    z11 = z12 = tmp4;
-                }
-                tmp7 = z11 + z13;
-                tmp11 = (((z11 - z13) * 362) >> 8);  // 362>>8 = 1.414213562
-                z5 = (((z10 + z12) * 473) >> 8);  // 473>>8 = 1.8477
-                tmp12 = ((z10 * -669)>>8) + z5; // -669>>8 = -2.6131259
-                tmp6 = tmp12 - tmp7;
-                tmp5 = tmp11 - tmp6;
-                tmp10 = ((z12 * 277)>>8) - z5; // 277>>8 = 1.08239
-                tmp4 = tmp10 + tmp5;
-                pMCUSrc[iCol] = (short)(tmp0 + tmp7);    // row0
-                pMCUSrc[iCol+8] = (short)(tmp1 + tmp6);  // row 1
-                pMCUSrc[iCol+16] = (short)(tmp2 + tmp5); // row 2
-                pMCUSrc[iCol+24] = (short)(tmp3 - tmp4); // row 3
-                pMCUSrc[iCol+32] = (short)(tmp3 + tmp4); // row 4
-                pMCUSrc[iCol+40] = (short)(tmp2 - tmp5); // row 5
-                pMCUSrc[iCol+48] = (short)(tmp1 - tmp6); // row 6
-                pMCUSrc[iCol+56] = (short)(tmp0 - tmp7); // row 7
-            } // full calculation needed
+            JPEGIDCT_internal(&pMCUSrc[iCol], &pQuant[iCol]);
         } // if column has data in it
     } // for each column
 #endif // NO SIMD
