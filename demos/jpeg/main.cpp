@@ -49,6 +49,12 @@ void accel_idct_kernel(
 	short is_y
 )
 {
+#ifdef IDCT_MERGE_IN_FIELDS
+  idct_kernel_din01_write(uint16_t(data_in_0) | (data_in_1 << 16));
+  idct_kernel_din23_write(uint16_t(data_in_2) | (data_in_3 << 16));
+  idct_kernel_din45_write(uint16_t(data_in_4) | (data_in_5 << 16));
+  idct_kernel_din67_write(uint16_t(data_in_6) | (data_in_7 << 16));
+#else
   idct_kernel_din0_write((int)data_in_0);
   idct_kernel_din1_write((int)data_in_1);
   idct_kernel_din2_write((int)data_in_2);
@@ -57,11 +63,27 @@ void accel_idct_kernel(
   idct_kernel_din5_write((int)data_in_5);
   idct_kernel_din6_write((int)data_in_6);
   idct_kernel_din7_write((int)data_in_7);
+#endif
   idct_kernel_is_y_write(is_y);
 
   idct_kernel_run_write(1);
   while(!idct_kernel_done_read());
 
+#ifdef IDCT_MERGE_OUT_FIELDS
+  uint32_t o01 = idct_kernel_dout01_read();
+  uint32_t o23 = idct_kernel_dout23_read();
+  uint32_t o45 = idct_kernel_dout45_read();
+  uint32_t o67 = idct_kernel_dout67_read();
+
+  data_out_0 = o01;
+  data_out_1 = o01 >> 16;
+  data_out_2 = o23;
+  data_out_3 = o23 >> 16;
+  data_out_4 = o45;
+  data_out_5 = o45 >> 16;
+  data_out_6 = o67;
+  data_out_7 = o67 >> 16;
+#else
   data_out_0 = idct_kernel_dout0_read();
   data_out_1 = idct_kernel_dout1_read();
   data_out_2 = idct_kernel_dout2_read();
@@ -70,7 +92,7 @@ void accel_idct_kernel(
   data_out_5 = idct_kernel_dout5_read();
   data_out_6 = idct_kernel_dout6_read();
   data_out_7 = idct_kernel_dout7_read();
-
+#endif
   idct_kernel_run_write(0);
 }
 
@@ -119,6 +141,8 @@ void graphics_app()
 	
 	if(idct_benchmark())
       printf("Results MATCH!\n");
+    else
+      printf("Results DOES NOT match!\n");
 	
 	for(;;)
 	{
@@ -133,6 +157,7 @@ void graphics_app()
 	}
 }
 
+short r[8];
 
 bool idct_benchmark()
 {
@@ -144,10 +169,10 @@ bool idct_benchmark()
 	uint64_t t;
 
     printf("Running IDCT benchmark...\n");
-    short s[8]={1, 2, 3, 4, 5, 6, 7, 8}, r[8];
 
 	int	soft_acc = 0;
 	t = highres_ticks();
+	short *s = (short *) idct_benchmark; //random data
 	for(int i = 0; i < REPEATS; ++i)
 	{
     	_idct_kernel(
@@ -155,7 +180,7 @@ bool idct_benchmark()
     		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], 0);
     	soft_acc += r[7];
 	}
-    printf("Software result: %d, time %lu clocks/pixel\n", soft_acc, long((highres_ticks() - t)/(REPEATS*8)));
+    printf("Software time %lu clocks/pixel\n", long((highres_ticks() - t)/(REPEATS*8)));
 
 	int	hard_acc = 0;
 	t = highres_ticks();
@@ -166,7 +191,7 @@ bool idct_benchmark()
     		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], 0);
     	hard_acc += r[7];
 	}
-    printf("Hardware result: %d, time %lu clocks/pixel\n", hard_acc, long((highres_ticks() - t)/(REPEATS*8)));
+    printf("Hardware time %lu clocks/pixel\n", long((highres_ticks() - t)/(REPEATS*8)));
 
     return soft_acc == hard_acc;
 }
@@ -207,9 +232,11 @@ int main(int argc, char **argv)
   return 0;
 }
 
-#define CFLEXHDL_SKIP_STDINT_DEFS
-#include "idct_kernel.cc"
-
 // helpers -----------------------------------------------------------------------------------------
 void _putchar(char c) { uart_write(c); } //this is to make printf work
+
+
+//inlcude sofware impleentation of the accelerator, to test match with hardware
+#define CFLEXHDL_SKIP_STDINT_DEFS
+#include "idct_kernel.cc"
 

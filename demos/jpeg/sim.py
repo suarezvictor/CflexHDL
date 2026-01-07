@@ -134,58 +134,6 @@ class _CRG(Module):
             self.comb += cd.rst.eq(int_rst)
 
 
-class Accel(Module, AutoCSR):
-    def __init__(self):
-        self.name = "idct_kernel"
-        self.din0 = CSRStorage(16)
-        self.din1 = CSRStorage(16)
-        self.din2 = CSRStorage(16)
-        self.din3 = CSRStorage(16)
-        self.din4 = CSRStorage(16)
-        self.din5 = CSRStorage(16)
-        self.din6 = CSRStorage(16)
-        self.din7 = CSRStorage(16)
-        self.dout0 = CSRStatus(16)
-        self.dout1 = CSRStatus(16)
-        self.dout2 = CSRStatus(16)
-        self.dout3 = CSRStatus(16)
-        self.dout4 = CSRStatus(16)
-        self.dout5 = CSRStatus(16)
-        self.dout6 = CSRStatus(16)
-        self.dout7 = CSRStatus(16)
-        self.is_y = CSRStorage(16)
-
-        self.run = CSRStorage(reset=0)
-        self.done  = CSRStatus()
-
-    def do_finalize(self):
-        super().do_finalize()
-        self.specials += Instance("M_idct_kernel",
-            i_in_data_in_0 = self.din0.storage,
-            i_in_data_in_1 = self.din1.storage,
-            i_in_data_in_2 = self.din2.storage,
-            i_in_data_in_3 = self.din3.storage,
-            i_in_data_in_4 = self.din4.storage,
-            i_in_data_in_5 = self.din5.storage,
-            i_in_data_in_6 = self.din6.storage,
-            i_in_data_in_7 = self.din7.storage,
-            o_out_data_out_0 = self.dout0.status,
-            o_out_data_out_1 = self.dout1.status,
-            o_out_data_out_2 = self.dout2.status,
-            o_out_data_out_3 = self.dout3.status,
-            o_out_data_out_4 = self.dout4.status,
-            o_out_data_out_5 = self.dout5.status,
-            o_out_data_out_6 = self.dout6.status,
-            o_out_data_out_7 = self.dout7.status,
-            i_in_is_y = self.is_y.storage,
-
-            i_in_run  = self.run.storage,
-            o_out_done = self.done.status,
-            o_out_clock = Signal(),
-            i_reset = ResetSignal("sys"),
-            i_clock = ClockSignal("sys")
-        )
-
 # Simulation SoC -----------------------------------------------------------------------------------
 
 class SimSoC(SoCCore):
@@ -245,9 +193,13 @@ class SimSoC(SoCCore):
             self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
 
         # Accelerator --------------------------------------------------------------------------------------
-        self.submodules.idct_kernel = Accel()
-        #for i in range(8):
-        #    setattr(self.submodules, f"idct_kernel{i}", Accel())
+        from videocodecs import AccelIDCT
+        merge = True, True
+        if merge[0]:
+            self.add_constant("IDCT_MERGE_IN_FIELDS")
+        if merge[1]:
+            self.add_constant("IDCT_MERGE_OUT_FIELDS")
+        self.submodules.idct_kernel = AccelIDCT(mergein=merge[0], mergeout=merge[1])
 
 
 

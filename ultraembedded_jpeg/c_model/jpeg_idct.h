@@ -13,22 +13,23 @@
 #include <assert.h>
 
 typedef void (*idct_kernel_t)(
-	const int& data_in_0,
-	const int& data_in_1,
-	const int& data_in_2,
-	const int& data_in_3,
-	const int& data_in_4,
-	const int& data_in_5,
-	const int& data_in_6,
-	const int& data_in_7,
-	int& data_out_0,
-	int& data_out_1,
-	int& data_out_2,
-	int& data_out_3,
-	int& data_out_4,
-	int& data_out_5,
-	int& data_out_6,
-	int& data_out_7
+	short data_in_0,
+	short data_in_1,
+	short data_in_2,
+	short data_in_3,
+	short data_in_4,
+	short data_in_5,
+	short data_in_6,
+	short data_in_7,
+	short& data_out_0,
+	short& data_out_1,
+	short& data_out_2,
+	short& data_out_3,
+	short& data_out_4,
+	short& data_out_5,
+	short& data_out_6,
+	short& data_out_7,
+	short is_y
 );
 
 extern idct_kernel_t idct_kernel;
@@ -46,18 +47,15 @@ public:
     // process: Perform inverse DCT on already dequantized data.
     // [Not quite sure who to attribute this implementation to...]
     //-----------------------------------------------------------------------------
-    void process(int *data_in, int *data_out)
+    void process(short *data_in, short *data_out)
     {
-        int s0,s1,s2,s3,s4,s5,s6,s7;
-        int t0,t1,t2,t3,t4,t5,t6,t7;
 
-        int working_buf[64];
-        int *temp_buf = working_buf;
+        short working_buf[64];
+        short *temp_buf = working_buf;
 
         // X - Rows
         for(int i=0;i<8;i++)
         {
-			//idct_kernel((int*)data_in, (int*)temp_buf);
 			idct_kernel(
 			  data_in[0],
 			  data_in[1],
@@ -74,7 +72,8 @@ public:
 			  temp_buf[4],
 			  temp_buf[5],
 			  temp_buf[6],
-			  temp_buf[7]
+			  temp_buf[7],
+			  0
 			  );
 			
             // Next row
@@ -86,36 +85,25 @@ public:
         temp_buf = working_buf;
         for(int i=0;i<8;i++)
         {
-            int col[8] = {temp_buf[0], temp_buf[8], temp_buf[16], temp_buf[24], temp_buf[32], temp_buf[40], temp_buf[48], temp_buf[56]};
-            int out[8];
-			//idct_kernel(col, out);
 			idct_kernel(
-			  col[0],
-			  col[1],
-			  col[2],
-			  col[3],
-			  col[4],
-			  col[5],
-			  col[6],
-			  col[7],
-			  out[0],
-			  out[1],
-			  out[2],
-			  out[3],
-			  out[4],
-			  out[5],
-			  out[6],
-			  out[7]
+			  temp_buf[0],
+			  temp_buf[8],
+			  temp_buf[16],
+			  temp_buf[24],
+			  temp_buf[32],
+			  temp_buf[40],
+			  temp_buf[48],
+			  temp_buf[56],
+			  data_out[0],
+			  data_out[8],
+			  data_out[16],
+			  data_out[24],
+			  data_out[32],
+			  data_out[40],
+			  data_out[48],
+			  data_out[56],
+			  1
 			  );
-
-            data_out[0]  = out[0] >> 4;
-            data_out[8]  = out[1] >> 4;
-            data_out[16] = out[2] >> 4;
-            data_out[24] = out[3] >> 4;
-            data_out[32] = out[4] >> 4;
-            data_out[40] = out[5] >> 4;
-            data_out[48] = out[6] >> 4;
-            data_out[56] = out[7] >> 4;
             
             temp_buf++;
             data_out++;

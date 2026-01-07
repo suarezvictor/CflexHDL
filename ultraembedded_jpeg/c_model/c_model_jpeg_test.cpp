@@ -56,7 +56,7 @@ static unsigned m_stride;
 //-----------------------------------------------------------------------------
 // ConvertYUV2RGB: Convert from YUV to RGB
 //-----------------------------------------------------------------------------
-static void ConvertYUV2RGB(int block_num, int *y, int *cb, int *cr)
+static void ConvertYUV2RGB(int block_num, short *y, short *cb, short *cr)
 {
     int x_blocks = (m_width / 8);
 
@@ -132,10 +132,10 @@ static bool DecodeImage(jpeg_state& st)
     int16_t dc_coeff_Cb= 0;
     int16_t dc_coeff_Cr= 0;
     int     sample_out[64];
-    int     block_out[64];
-    int     y_dct_out[4*64];
-    int     cb_dct_out[64];
-    int     cr_dct_out[64];
+    int16_t     block_out[64];
+    int16_t     y_dct_out[4*64];
+    int16_t     cb_dct_out[64];
+    int16_t     cr_dct_out[64];
     int     count = 0;
     int     loop = 0;
 
@@ -182,8 +182,8 @@ static bool DecodeImage(jpeg_state& st)
             m_idct.process(block_out, &cr_dct_out[0]);
 
             // Expand Cb/Cr samples to match Y0-3
-            int cb_dct_out_x2[256];
-            int cr_dct_out_x2[256];
+            int16_t cb_dct_out_x2[256];
+            int16_t cr_dct_out_x2[256];
 
             for (int i=0;i<64;i++)
             {

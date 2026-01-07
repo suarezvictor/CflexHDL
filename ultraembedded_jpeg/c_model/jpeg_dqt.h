@@ -80,7 +80,7 @@ public:
     // process_samples: Multiply out samples and de-zigzag ready for IDCT
     // samples: (idx, value)
     //-------------------------------------------------------------------------
-    void process_samples(int quant_table, int *sample_in, int *block_out, int count)
+    void process_samples(int quant_table, int *sample_in, short *block_out, int count)
     {
         // Apply quantisation and zigzag
         memset(block_out, 0, sizeof(block_out[0])*64);

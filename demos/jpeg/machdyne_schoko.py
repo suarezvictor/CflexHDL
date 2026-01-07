@@ -34,62 +34,7 @@ from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 #from litedram.phy import QuarterRateGENSDRPHY
 
 from litex.soc.integration.soc import SoCRegion
-
-from litex.soc.interconnect.csr import AutoCSR, CSRStorage
 from litex.soc.interconnect import stream, wishbone
-from litex.soc.interconnect.csr import CSRStatus
-
-class Accel(Module, AutoCSR):
-    def __init__(self):
-        self.name = "idct_kernel"
-        self.din0 = CSRStorage(16)
-        self.din1 = CSRStorage(16)
-        self.din2 = CSRStorage(16)
-        self.din3 = CSRStorage(16)
-        self.din4 = CSRStorage(16)
-        self.din5 = CSRStorage(16)
-        self.din6 = CSRStorage(16)
-        self.din7 = CSRStorage(16)
-        self.dout0 = CSRStatus(16)
-        self.dout1 = CSRStatus(16)
-        self.dout2 = CSRStatus(16)
-        self.dout3 = CSRStatus(16)
-        self.dout4 = CSRStatus(16)
-        self.dout5 = CSRStatus(16)
-        self.dout6 = CSRStatus(16)
-        self.dout7 = CSRStatus(16)
-        self.is_y = CSRStorage(16)
-
-        self.run = CSRStorage(reset=0)
-        self.done  = CSRStatus()
-
-    def do_finalize(self):
-        super().do_finalize()
-        self.specials += Instance("M_idct_kernel",
-            i_in_data_in_0 = self.din0.storage,
-            i_in_data_in_1 = self.din1.storage,
-            i_in_data_in_2 = self.din2.storage,
-            i_in_data_in_3 = self.din3.storage,
-            i_in_data_in_4 = self.din4.storage,
-            i_in_data_in_5 = self.din5.storage,
-            i_in_data_in_6 = self.din6.storage,
-            i_in_data_in_7 = self.din7.storage,
-            o_out_data_out_0 = self.dout0.status,
-            o_out_data_out_1 = self.dout1.status,
-            o_out_data_out_2 = self.dout2.status,
-            o_out_data_out_3 = self.dout3.status,
-            o_out_data_out_4 = self.dout4.status,
-            o_out_data_out_5 = self.dout5.status,
-            o_out_data_out_6 = self.dout6.status,
-            o_out_data_out_7 = self.dout7.status,
-            i_in_is_y = self.is_y.storage,
-
-            i_in_run  = self.run.storage,
-            o_out_done = self.done.status,
-            o_out_clock = Signal(),
-            i_reset = ResetSignal("sys"),
-            i_clock = ClockSignal("sys")
-        )
 
 # CRG ---------------------------------------------------------------------------------------------
 
@@ -207,7 +152,11 @@ class BaseSoC(SoCCore):
                 sys_clk_freq = sys_clk_freq)
 
         # Accelerator --------------------------------------------------------------------------------------
-        self.submodules.idct_kernel = Accel()
+        from videocodecs import AccelIDCT
+        merge = True, True
+        self.add_constant("IDCT_MERGE_IN_FIELDS")
+        self.add_constant("IDCT_MERGE_OUT_FIELDS")
+        self.submodules.idct_kernel = AccelIDCT(mergein=True, mergeout=True)
 
 # Build --------------------------------------------------------------------------------------------
 
