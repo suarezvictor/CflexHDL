@@ -28,7 +28,6 @@ extern "C" void isr_handler(void)
 //#define dprintf printf
 #include "c_model/c_model_jpeg_test.cpp"
 
-static inline __attribute__((always_inline))
 void accel_idct_kernel(
 	short data_in_0,
 	short data_in_1,
@@ -97,8 +96,7 @@ void accel_idct_kernel(
 }
 
 
-void __attribute__ ((noinline)) //atribute is needed so compiler does not optimize constant inputs
-_idct_kernel(
+void _idct_kernel(
 	short data_in_0,
 	short data_in_1,
 	short data_in_2,
@@ -140,14 +138,16 @@ void graphics_app()
 	unsigned frame = 0;
 	
 	if(idct_benchmark())
-      printf("Results MATCH!\n");
+      printf("Software and hardware results MATCH!\n");
     else
-      printf("Results DOES NOT match!\n");
+      printf("Software and hardware results DOES NOT match!\n");
 	
 	for(;;)
 	{
 
+#ifndef LITEX_SIMULATION
 		memset(video_buf, 0x40, VIDEO_FRAMEBUFFER_VRES*stride);
+#endif
 		bool hard = !(frame & 1);
 		printf("JPEG %s IDCT decoding...\n", hard ? "hardware": "software");
 		idct_kernel = hard ? accel_idct_kernel : _idct_kernel;
@@ -157,43 +157,59 @@ void graphics_app()
 	}
 }
 
-short r[8];
-
+short s[8][8], r[8][8]; //keep global memory so the compiler cannot guess contents
+#include <math.h>
 bool idct_benchmark()
 {
 #ifndef LITEX_SIMULATION
-	const int REPEATS = 1000*1000;
+	const int REPEATS = 100*1000;
 #else
-	const int REPEATS = 10*1000;
+	const int REPEATS = 1000;
 #endif
 	uint64_t t;
-
     printf("Running IDCT benchmark...\n");
 
 	int	soft_acc = 0;
+	for(int i = 0; i < 8; ++i)
+	  s[0][i] = 256*(i == 0);
+
+
+#define ARGS(i)	s[i][0], s[i][1], s[i][2], s[i][3], s[i][4], s[i][5], s[i][6], s[i][7], \
+    		r[i][0], r[i][1], r[i][2], r[i][3], r[i][4], r[i][5], r[i][6], r[i][7], 0
+
 	t = highres_ticks();
-	short *s = (short *) idct_benchmark; //random data
 	for(int i = 0; i < REPEATS; ++i)
 	{
-    	_idct_kernel(
-    	    s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
-    		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], 0);
-    	soft_acc += r[7];
+    	_idct_kernel(ARGS(0));
+    	_idct_kernel(ARGS(1));
+    	_idct_kernel(ARGS(2));
+    	_idct_kernel(ARGS(3));
+    	_idct_kernel(ARGS(4));
+    	_idct_kernel(ARGS(5));
+    	_idct_kernel(ARGS(6));
+    	_idct_kernel(ARGS(7));
+    	soft_acc += r[0][7];
 	}
-    printf("Software time %lu clocks/pixel\n", long((highres_ticks() - t)/(REPEATS*8)));
+    printf("Software time %lu clocks/block\n", long((highres_ticks() - t)/REPEATS));
 
 	int	hard_acc = 0;
 	t = highres_ticks();
 	for(int i = 0; i < REPEATS; ++i)
 	{
-    	accel_idct_kernel(
-    	    s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
-    		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], 0);
-    	hard_acc += r[7];
+    	accel_idct_kernel(ARGS(0));
+    	accel_idct_kernel(ARGS(1));
+    	accel_idct_kernel(ARGS(2));
+    	accel_idct_kernel(ARGS(3));
+    	accel_idct_kernel(ARGS(4));
+    	accel_idct_kernel(ARGS(5));
+    	accel_idct_kernel(ARGS(6));
+    	accel_idct_kernel(ARGS(7));
+    	hard_acc += r[0][7];
 	}
-    printf("Hardware time %lu clocks/pixel\n", long((highres_ticks() - t)/(REPEATS*8)));
+    printf("Hardware time %lu clocks/block\n", long((highres_ticks() - t)/REPEATS));
 
     return soft_acc == hard_acc;
+#undef ARGS    
 }
 
 
