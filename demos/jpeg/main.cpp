@@ -118,6 +118,8 @@ void _idct_kernel(
 
 idct_kernel_t idct_kernel = nullptr;
 
+uint8_t *const video_buf = (uint8_t *) VIDEO_FRAMEBUFFER_BASE;
+const unsigned stride = VIDEO_FRAMEBUFFER_HRES*(VIDEO_FRAMEBUFFER_DEPTH/8);
 
 #ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
 static inline uint64_t highres_ticks(void) { timer0_uptime_latch_write(1);  return timer0_uptime_cycles_read(); }
@@ -128,14 +130,27 @@ extern "C" char sample640x480_jpeg[];
 extern "C" unsigned sample640x480_jpeg_len;
 
 
+#define JPEGDEC_OTHER_PLATFORM
+#include "../../jpegdec/src/JPEGDEC.cpp"
+
+void jpegdec_test()
+{
+    static JPEGDEC jpg;
+    jpg.openRAM((uint8_t *)sample640x480_jpeg, sample640x480_jpeg_len, nullptr);
+    jpg.setPixelType(RGB8888);
+	jpg.setFramebuffer(video_buf);
+    jpg.decode(0, 0, 0);
+    jpg.close();
+}
+
 bool idct_benchmark();
 
 void graphics_app()
 {
-	uint8_t *const video_buf = (uint8_t *) VIDEO_FRAMEBUFFER_BASE;
-	const unsigned stride = VIDEO_FRAMEBUFFER_HRES*(VIDEO_FRAMEBUFFER_DEPTH/8);
-
 	unsigned frame = 0;
+	
+	memset(video_buf, 0x40, VIDEO_FRAMEBUFFER_VRES*stride);
+	jpegdec_test();
 	
 	if(idct_benchmark())
       printf("Software and hardware results MATCH!\n");
@@ -144,7 +159,6 @@ void graphics_app()
 	
 	for(;;)
 	{
-
 #ifndef LITEX_SIMULATION
 		memset(video_buf, 0x40, VIDEO_FRAMEBUFFER_VRES*stride);
 #endif
