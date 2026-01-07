@@ -1,6 +1,8 @@
 #TODO: see $(LITEX_ROOT)/litex/soc/software/demo/Makefile
 
 BOARD?=sim
+#BOARD?=machdyne_schoko
+SERIAL?=/dev/ttyUSB0
 BUILD_DIR=./build/$(BOARD)
 LITEX_ROOT=../../../litex
 MAIN_SRC=idct_kernel
@@ -14,6 +16,7 @@ include $(LITEX_ROOT)/litex/soc/software/common.mak
 
 INCLUDE = -I../../include -I../../ultraembedded_jpeg/
 CXXFLAGS += $(INCLUDE) -O2 -fno-threadsafe-statics
+SOCARGS = --timer-uptime
 
 all: $(BOARD)
 
@@ -33,16 +36,22 @@ all: $(BOARD)
 firmware: $(BUILD_DIR)/main.bin
 
 upload: $(BUILD_DIR)/main.bin
-	$(LITEX_ROOT)/litex/tools/litex_term.py /dev/ttyUSB1 --kernel $(BUILD_DIR)/main.bin --speed 115200
+	$(LITEX_ROOT)/litex/tools/litex_term.py $(SERIAL) --kernel $(BUILD_DIR)/main.bin --speed 115200
 
 $(BUILD_DIR)/main.elf: main.o crt0.o sample640x480.o
 	$(CC) -T linker.ld -o $(BUILD_DIR)/main.elf crt0.o main.o sample640x480.o $(PACKAGES:%=-L$(BUILD_DIR)/software/%) -L$(BUILDINC_DIRECTORY) $(CPUFLAGS) -nostartfiles $(LIBS:lib%=-l%)
 	
 prerequisites: $(BOARD).py
-	python $(BOARD).py --no-compile-gateware
+	python $(BOARD).py $(SOCARGS) --no-compile-gateware
 
 sim: $(BUILD_DIR)/main.bin verilog
-	VIDEO=1 $(PYTHON) sim.py --sdram-init $(BUILD_DIR)/main.bin
+	VIDEO=1 $(PYTHON) sim.py $(SOCARGS) --sdram-init $(BUILD_DIR)/main.bin
+
+machdyne_schoko: $(BUILD_DIR)/gateware/machdyne_schoko.bit
+
+$(BUILD_DIR)/gateware/machdyne_schoko.bit: $(BOARD).py verilog
+	python $(BOARD).py $(SOCARGS) --build --load
+	echo Run openFPGALoader -c ft2232 $(BUILD_DIR)/gateware/machdyne_schoko.bit
 
 bitstream: $(BOARD)
 

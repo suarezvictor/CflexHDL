@@ -41,23 +41,24 @@ from litex.soc.interconnect.csr import CSRStatus
 
 class Accel(Module, AutoCSR):
     def __init__(self):
-        self.name = "idct_kerlen"
-        self.din0 = CSRStorage(32)
-        self.din1 = CSRStorage(32)
-        self.din2 = CSRStorage(32)
-        self.din3 = CSRStorage(32)
-        self.din4 = CSRStorage(32)
-        self.din5 = CSRStorage(32)
-        self.din6 = CSRStorage(32)
-        self.din7 = CSRStorage(32)
-        self.dout0 = CSRStatus(32)
-        self.dout1 = CSRStatus(32)
-        self.dout2 = CSRStatus(32)
-        self.dout3 = CSRStatus(32)
-        self.dout4 = CSRStatus(32)
-        self.dout5 = CSRStatus(32)
-        self.dout6 = CSRStatus(32)
-        self.dout7 = CSRStatus(32)
+        self.name = "idct_kernel"
+        self.din0 = CSRStorage(16)
+        self.din1 = CSRStorage(16)
+        self.din2 = CSRStorage(16)
+        self.din3 = CSRStorage(16)
+        self.din4 = CSRStorage(16)
+        self.din5 = CSRStorage(16)
+        self.din6 = CSRStorage(16)
+        self.din7 = CSRStorage(16)
+        self.dout0 = CSRStatus(16)
+        self.dout1 = CSRStatus(16)
+        self.dout2 = CSRStatus(16)
+        self.dout3 = CSRStatus(16)
+        self.dout4 = CSRStatus(16)
+        self.dout5 = CSRStatus(16)
+        self.dout6 = CSRStatus(16)
+        self.dout7 = CSRStatus(16)
+        self.is_y = CSRStorage(16)
 
         self.run = CSRStorage(reset=0)
         self.done  = CSRStatus()
@@ -81,6 +82,8 @@ class Accel(Module, AutoCSR):
             o_out_data_out_5 = self.dout5.status,
             o_out_data_out_6 = self.dout6.status,
             o_out_data_out_7 = self.dout7.status,
+            i_in_is_y = self.is_y.storage,
+
             i_in_run  = self.run.storage,
             o_out_done = self.done.status,
             o_out_clock = Signal(),

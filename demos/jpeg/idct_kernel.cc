@@ -1,28 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
-//(C) 2025 Victor Suarez Rovere <suarezvictor@gmail.com>
+//(C) 2025-2026 Victor Suarez Rovere <suarezvictor@gmail.com>
 //(C) 2020 Ultraembedded https://github.com/ultraembedded/core_jpeg
 
 #include "cflexhdl.h"
 #define int int32
 #define short int16
 
+//#define idct_stage() pipeline_stage() //enable for pipelined implementation in hardware
+#define idct_stage()
+
 void _idct_kernel(
-	const int& data_in_0,
-	const int& data_in_1,
-	const int& data_in_2,
-	const int& data_in_3,
-	const int& data_in_4,
-	const int& data_in_5,
-	const int& data_in_6,
-	const int& data_in_7,
-	int& data_out_0,
-	int& data_out_1,
-	int& data_out_2,
-	int& data_out_3,
-	int& data_out_4,
-	int& data_out_5,
-	int& data_out_6,
-	int& data_out_7
+	short data_in_0,
+	short data_in_1,
+	short data_in_2,
+	short data_in_3,
+	short data_in_4,
+	short data_in_5,
+	short data_in_6,
+	short data_in_7,
+	short& data_out_0,
+	short& data_out_1,
+	short& data_out_2,
+	short& data_out_3,
+	short& data_out_4,
+	short& data_out_5,
+	short& data_out_6,
+	short& data_out_7,
+	short is_y
 )
 {
     //constant factors: cos(N*pi/16)*2^12
@@ -42,7 +46,7 @@ void _idct_kernel(
 	int s6a = data_in_5 * C5;
 	int s5a = data_in_5 * C3;
 
-    pipeline_stage();
+    idct_stage();
 
 	int s0b = data_in_4 * C4; //same as s1b
 	int s3b = data_in_6 * C6;
@@ -52,7 +56,7 @@ void _idct_kernel(
 	int s6b = data_in_3 * C3;
 	int s5b = data_in_3 * C5;
 
-    pipeline_stage();
+    idct_stage();
 
 	int s0 = s0a + s0b;
 	int s1 = s0a - s0b;
@@ -72,19 +76,28 @@ void _idct_kernel(
 	int t7 = s7 + s6;
 	int t6 = s7 - s6;
 
-    pipeline_stage();
+    idct_stage();
 
 	int r5 = ((t6 - t5) * 181) >> 8; // 1/sqrt(2)
 	int r6 = ((t5 + t6) * 181) >> 8; // 1/sqrt(2)
 
-    pipeline_stage();
+    idct_stage();
 
-	data_out_0 = (t0 + t7) >> 11;
-	data_out_1 = (t1 + r6) >> 11;
-	data_out_2 = (t2 + r5) >> 11;
-	data_out_3 = (t3 + t4) >> 11;
-	data_out_4 = (t3 - t4) >> 11;
-	data_out_5 = (t2 - r5) >> 11;
-	data_out_6 = (t1 - r6) >> 11;
-	data_out_7 = (t0 - t7) >> 11;
+	int o0 = (t0 + t7) >> 11;
+	int o1 = (t1 + r6) >> 11;
+	int o2 = (t2 + r5) >> 11;
+	int o3 = (t3 + t4) >> 11;
+	int o4 = (t3 - t4) >> 11;
+	int o5 = (t2 - r5) >> 11;
+	int o6 = (t1 - r6) >> 11;
+	int o7 = (t0 - t7) >> 11;
+
+	data_out_0 = is_y == 0 ? o0 : o0 >> 4;
+	data_out_1 = is_y == 0 ? o1 : o1 >> 4;
+	data_out_2 = is_y == 0 ? o2 : o2 >> 4;
+	data_out_3 = is_y == 0 ? o3 : o3 >> 4;
+	data_out_4 = is_y == 0 ? o4 : o4 >> 4;
+	data_out_5 = is_y == 0 ? o5 : o5 >> 4;
+	data_out_6 = is_y == 0 ? o6 : o6 >> 4;
+	data_out_7 = is_y == 0 ? o7 : o7 >> 4;
 }

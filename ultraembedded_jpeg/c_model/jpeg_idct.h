@@ -12,7 +12,7 @@
 #include <string.h>
 #include <assert.h>
 
-void idct_kernel(
+typedef void (*idct_kernel_t)(
 	const int& data_in_0,
 	const int& data_in_1,
 	const int& data_in_2,
@@ -30,6 +30,8 @@ void idct_kernel(
 	int& data_out_6,
 	int& data_out_7
 );
+
+extern idct_kernel_t idct_kernel;
 
 //-----------------------------------------------------------------------------
 // jpeg_idct:

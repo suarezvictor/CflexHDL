@@ -28,44 +28,72 @@ extern "C" void isr_handler(void)
 //#define dprintf printf
 #include "c_model/c_model_jpeg_test.cpp"
 
-
+static inline __attribute__((always_inline))
 void accel_idct_kernel(
-	const int& data_in_0,
-	const int& data_in_1,
-	const int& data_in_2,
-	const int& data_in_3,
-	const int& data_in_4,
-	const int& data_in_5,
-	const int& data_in_6,
-	const int& data_in_7,
-	int& data_out_0,
-	int& data_out_1,
-	int& data_out_2,
-	int& data_out_3,
-	int& data_out_4,
-	int& data_out_5,
-	int& data_out_6,
-	int& data_out_7
-);
+	short data_in_0,
+	short data_in_1,
+	short data_in_2,
+	short data_in_3,
+	short data_in_4,
+	short data_in_5,
+	short data_in_6,
+	short data_in_7,
+	short& data_out_0,
+	short& data_out_1,
+	short& data_out_2,
+	short& data_out_3,
+	short& data_out_4,
+	short& data_out_5,
+	short& data_out_6,
+	short& data_out_7,
+	short is_y
+)
+{
+  idct_kernel_din0_write((int)data_in_0);
+  idct_kernel_din1_write((int)data_in_1);
+  idct_kernel_din2_write((int)data_in_2);
+  idct_kernel_din3_write((int)data_in_3);
+  idct_kernel_din4_write((int)data_in_4);
+  idct_kernel_din5_write((int)data_in_5);
+  idct_kernel_din6_write((int)data_in_6);
+  idct_kernel_din7_write((int)data_in_7);
+  idct_kernel_is_y_write(is_y);
+
+  idct_kernel_run_write(1);
+  while(!idct_kernel_done_read());
+
+  data_out_0 = idct_kernel_dout0_read();
+  data_out_1 = idct_kernel_dout1_read();
+  data_out_2 = idct_kernel_dout2_read();
+  data_out_3 = idct_kernel_dout3_read();
+  data_out_4 = idct_kernel_dout4_read();
+  data_out_5 = idct_kernel_dout5_read();
+  data_out_6 = idct_kernel_dout6_read();
+  data_out_7 = idct_kernel_dout7_read();
+
+  idct_kernel_run_write(0);
+}
+
 
 void __attribute__ ((noinline)) //atribute is needed so compiler does not optimize constant inputs
 _idct_kernel(
-	const int& data_in_0,
-	const int& data_in_1,
-	const int& data_in_2,
-	const int& data_in_3,
-	const int& data_in_4,
-	const int& data_in_5,
-	const int& data_in_6,
-	const int& data_in_7,
-	int& data_out_0,
-	int& data_out_1,
-	int& data_out_2,
-	int& data_out_3,
-	int& data_out_4,
-	int& data_out_5,
-	int& data_out_6,
-	int& data_out_7
+	short data_in_0,
+	short data_in_1,
+	short data_in_2,
+	short data_in_3,
+	short data_in_4,
+	short data_in_5,
+	short data_in_6,
+	short data_in_7,
+	short& data_out_0,
+	short& data_out_1,
+	short& data_out_2,
+	short& data_out_3,
+	short& data_out_4,
+	short& data_out_5,
+	short& data_out_6,
+	short& data_out_7,
+	short is_y
 );
 
 idct_kernel_t idct_kernel = nullptr;
@@ -96,7 +124,7 @@ void graphics_app()
 	{
 
 		memset(video_buf, 0x40, VIDEO_FRAMEBUFFER_VRES*stride);
-		bool hard = frame & 1;
+		bool hard = !(frame & 1);
 		printf("JPEG %s IDCT decoding...\n", hard ? "hardware": "software");
 		idct_kernel = hard ? accel_idct_kernel : _idct_kernel;
 		ultraembedded_jpeg_decompress((uint8_t*) sample640x480_jpeg, sample640x480_jpeg_len, video_buf, stride);
@@ -105,33 +133,37 @@ void graphics_app()
 	}
 }
 
-int s[8]={1, 2, 3, 4, 5, 6, 7, 8}, r[8];
 
 bool idct_benchmark()
 {
+#ifndef LITEX_SIMULATION
 	const int REPEATS = 1000*1000;
+#else
+	const int REPEATS = 10*1000;
+#endif
 	uint64_t t;
 
     printf("Running IDCT benchmark...\n");
+    short s[8]={1, 2, 3, 4, 5, 6, 7, 8}, r[8];
 
 	int	soft_acc = 0;
 	t = highres_ticks();
-	for(int i = 0; i < 1000*1000; ++i)
+	for(int i = 0; i < REPEATS; ++i)
 	{
     	_idct_kernel(
     	    s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
-    		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7]);
+    		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], 0);
     	soft_acc += r[7];
 	}
     printf("Software result: %d, time %lu clocks/pixel\n", soft_acc, long((highres_ticks() - t)/(REPEATS*8)));
 
 	int	hard_acc = 0;
 	t = highres_ticks();
-	for(int i = 0; i < 1000*1000; ++i)
+	for(int i = 0; i < REPEATS; ++i)
 	{
     	accel_idct_kernel(
     	    s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
-    		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7]);
+    		r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], 0);
     	hard_acc += r[7];
 	}
     printf("Hardware result: %d, time %lu clocks/pixel\n", hard_acc, long((highres_ticks() - t)/(REPEATS*8)));
@@ -173,50 +205,6 @@ int main(int argc, char **argv)
   irq_setmask(~0);
     
   return 0;
-}
-
-
-void accel_idct_kernel(
-	const int& data_in_0,
-	const int& data_in_1,
-	const int& data_in_2,
-	const int& data_in_3,
-	const int& data_in_4,
-	const int& data_in_5,
-	const int& data_in_6,
-	const int& data_in_7,
-	int& data_out_0,
-	int& data_out_1,
-	int& data_out_2,
-	int& data_out_3,
-	int& data_out_4,
-	int& data_out_5,
-	int& data_out_6,
-	int& data_out_7
-)
-{
-  idct_kernel_din0_write(data_in_0);
-  idct_kernel_din1_write(data_in_1);
-  idct_kernel_din2_write(data_in_2);
-  idct_kernel_din3_write(data_in_3);
-  idct_kernel_din4_write(data_in_4);
-  idct_kernel_din5_write(data_in_5);
-  idct_kernel_din6_write(data_in_6);
-  idct_kernel_din7_write(data_in_7);
-
-  idct_kernel_run_write(1);
-  while(!idct_kernel_done_read());
-
-  data_out_0 = idct_kernel_dout0_read();
-  data_out_1 = idct_kernel_dout1_read();
-  data_out_2 = idct_kernel_dout2_read();
-  data_out_3 = idct_kernel_dout3_read();
-  data_out_4 = idct_kernel_dout4_read();
-  data_out_5 = idct_kernel_dout5_read();
-  data_out_6 = idct_kernel_dout6_read();
-  data_out_7 = idct_kernel_dout7_read();
-
-  idct_kernel_run_write(0);
 }
 
 #define CFLEXHDL_SKIP_STDINT_DEFS
