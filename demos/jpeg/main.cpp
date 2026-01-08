@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+//(C) 2026 Victor Suarez Rovere <suarezvictor@gmail.com>
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -5,6 +8,7 @@
 #include <uart.h>
 #include <generated/csr.h>
 
+#define JPEGDEC_OTHER_PLATFORM //use JPEGDEC library, note that accelerator should match this
 
 extern "C" void isr_handler(void)
 {
@@ -24,9 +28,11 @@ extern "C" void isr_handler(void)
 
 }
 
+#ifndef JPEGDEC_OTHER_PLATFORM
 #define dprintf(...)
 //#define dprintf printf
 #include "c_model/c_model_jpeg_test.cpp"
+#endif
 
 void accel_idct_kernel(
 	short data_in_0,
@@ -95,7 +101,6 @@ void accel_idct_kernel(
   idct_kernel_run_write(0);
 }
 
-
 void _idct_kernel(
 	short data_in_0,
 	short data_in_1,
@@ -116,11 +121,6 @@ void _idct_kernel(
 	short is_y
 );
 
-idct_kernel_t idct_kernel = nullptr;
-
-uint8_t *const video_buf = (uint8_t *) VIDEO_FRAMEBUFFER_BASE;
-const unsigned stride = VIDEO_FRAMEBUFFER_HRES*(VIDEO_FRAMEBUFFER_DEPTH/8);
-
 #ifdef CSR_TIMER0_UPTIME_CYCLES_ADDR
 static inline uint64_t highres_ticks(void) { timer0_uptime_latch_write(1);  return timer0_uptime_cycles_read(); }
 static inline uint64_t highres_ticks_freq(void) { return CONFIG_CLOCK_FREQUENCY; }
@@ -130,27 +130,29 @@ extern "C" char sample640x480_jpeg[];
 extern "C" unsigned sample640x480_jpeg_len;
 
 
-#define JPEGDEC_OTHER_PLATFORM
+#ifdef JPEGDEC_OTHER_PLATFORM
 #include "../../jpegdec/src/JPEGDEC.cpp"
 
-void jpegdec_test()
+void jpegdec_test(uint8_t *buf, size_t size, uint8_t *videobuf, unsigned stride)
 {
     static JPEGDEC jpg;
-    jpg.openRAM((uint8_t *)sample640x480_jpeg, sample640x480_jpeg_len, nullptr);
+    jpg.openRAM(buf, size, nullptr);
     jpg.setPixelType(RGB8888);
-	jpg.setFramebuffer(video_buf);
+	jpg.setFramebuffer(videobuf);
     jpg.decode(0, 0, 0);
     jpg.close();
 }
+#endif
 
 bool idct_benchmark();
 
+idct_kernel_t idct_kernel = nullptr;
+
 void graphics_app()
 {
+    uint8_t *const video_buf = (uint8_t *) VIDEO_FRAMEBUFFER_BASE;
+    const unsigned stride = VIDEO_FRAMEBUFFER_HRES*(VIDEO_FRAMEBUFFER_DEPTH/8);
 	unsigned frame = 0;
-	
-	memset(video_buf, 0x40, VIDEO_FRAMEBUFFER_VRES*stride);
-	jpegdec_test();
 	
 	if(idct_benchmark())
       printf("Software and hardware results MATCH!\n");
@@ -165,7 +167,11 @@ void graphics_app()
 		bool hard = !(frame & 1);
 		printf("JPEG %s IDCT decoding...\n", hard ? "hardware": "software");
 		idct_kernel = hard ? accel_idct_kernel : _idct_kernel;
+#ifndef JPEGDEC_OTHER_PLATFORM		
 		ultraembedded_jpeg_decompress((uint8_t*) sample640x480_jpeg, sample640x480_jpeg_len, video_buf, stride);
+#else
+	    jpegdec_test((uint8_t*) sample640x480_jpeg, sample640x480_jpeg_len, video_buf, stride);
+#endif
 	
 		++frame;
 	}
@@ -266,7 +272,7 @@ int main(int argc, char **argv)
 void _putchar(char c) { uart_write(c); } //this is to make printf work
 
 
-//inlcude sofware impleentation of the accelerator, to test match with hardware
+//inlcude sofware implementation of the accelerator, to test matching with hardware
 #define CFLEXHDL_SKIP_STDINT_DEFS
 #include "idct_kernel.cc"
 

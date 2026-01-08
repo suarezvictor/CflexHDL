@@ -6,10 +6,14 @@
 #define int int32
 #define short int16
 
+//select IDCT algorithm
+#define idct_kernel_aan _idct_kernel //for JPEGDEC
+//#define idct_kernel_loeffler _idct_kernel //for Ultraembedded
+
 //#define idct_stage() pipeline_stage() //enable for pipelined implementation in hardware
 #define idct_stage()
 
-void _idct_kernel(
+void idct_kernel_loeffler(
 	short data_in_0,
 	short data_in_1,
 	short data_in_2,
@@ -78,8 +82,8 @@ void _idct_kernel(
 
     idct_stage();
 
-	int r5 = ((t6 - t5) * 181) >> 8; // 1/sqrt(2)
-	int r6 = ((t5 + t6) * 181) >> 8; // 1/sqrt(2)
+	int r5 = ((t6 - t5) * 181) >> 8; // *sqrt(.5)
+	int r6 = ((t5 + t6) * 181) >> 8; // *sqrt(.5)
 
     idct_stage();
 
@@ -100,4 +104,107 @@ void _idct_kernel(
 	data_out_5 = is_y == 0 ? o5 : o5 >> 4;
 	data_out_6 = is_y == 0 ? o6 : o6 >> 4;
 	data_out_7 = is_y == 0 ? o7 : o7 >> 4;
+}
+
+//AA&N IDCT (5 multipliers)
+//based on JPEGDEC's jpeg.inl: (C) BitBank Software LICENSE Apache 2.0
+void idct_kernel_aan(
+	short data_in_0,
+	short data_in_1,
+	short data_in_2,
+	short data_in_3,
+	short data_in_4,
+	short data_in_5,
+	short data_in_6,
+	short data_in_7,
+	short& data_out_0,
+	short& data_out_1,
+	short& data_out_2,
+	short& data_out_3,
+	short& data_out_4,
+	short& data_out_5,
+	short& data_out_6,
+	short& data_out_7,
+	short is_y
+)
+{
+    int tmp0,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,tmp7;
+    int tmp10,tmp11,tmp12,tmp13;
+    int z5,z10,z11,z12,z13;
+    int x0,x1,x2,x3,x4,x5,x6,x7;
+
+    tmp0 = data_in_0;
+    tmp4 = data_in_1;
+    tmp1 = data_in_2;
+    tmp5 = data_in_3;
+    tmp2 = data_in_4;
+    tmp6 = data_in_5;
+    tmp3 = data_in_6;
+    tmp7 = data_in_7;
+
+    tmp10 = tmp0 + tmp2;
+    tmp11 = tmp0 - tmp2;
+    tmp13 = tmp1 + tmp3;
+    tmp12 = (((tmp1 - tmp3) * 362) >> 8) - tmp13;  // 362>>8 = 1.414213562
+
+    idct_stage();
+
+    x0 = tmp10 + tmp13;
+    x3 = tmp10 - tmp13;
+    x1 = tmp11 + tmp12;
+    x2 = tmp11 - tmp12;
+
+    z13 = tmp6 + tmp5;
+    z10 = tmp6 - tmp5;
+    z11 = tmp4 + tmp7;
+    z12 = tmp4 - tmp7;
+    x7 = z11 + z13;
+
+    idct_stage();
+
+    tmp11 = (((z11 - z13) * 362) >> 8);  // 362>>8 = 1.414213562
+    z5 = (((z10 + z12) * 473) >> 8);  // 473>>8 = 1.8477
+
+    idct_stage();
+
+    tmp12 = ((z10 * -669)>>8) + z5; // -669>>8 = -2.6131259
+    tmp10 = ((z12 * 277)>>8) - z5; // 277>>8 = 1.08239
+
+    idct_stage();
+
+    x6 = tmp12 - x7;
+    x5 = tmp11 - x6;
+    x4 = tmp10 + x5;
+
+    short o0 = x0 + x7;
+    short o1 = x1 + x6;
+    short o2 = x2 + x5;
+    short o3 = x3 - x4;
+    short o4 = x3 + x4;
+    short o5 = x2 - x5;
+    short o6 = x1 - x6;
+    short o7 = x0 - x7;
+
+	if(is_y)
+	{
+		data_out_0 = o0;
+		data_out_1 = o1;
+		data_out_2 = o2;
+		data_out_3 = o3;
+		data_out_4 = o4;
+		data_out_5 = o5;
+		data_out_6 = o6;
+		data_out_7 = o7;
+	}
+	else
+	{
+		data_out_0 = o0 < -(128<<5) ? 0 : (o0 > (127<<5) ? 255 : (o0>>5)+128);
+		data_out_1 = o1 < -(128<<5) ? 0 : (o1 > (127<<5) ? 255 : (o1>>5)+128);
+		data_out_2 = o2 < -(128<<5) ? 0 : (o2 > (127<<5) ? 255 : (o2>>5)+128);
+		data_out_3 = o3 < -(128<<5) ? 0 : (o3 > (127<<5) ? 255 : (o3>>5)+128);
+		data_out_4 = o4 < -(128<<5) ? 0 : (o4 > (127<<5) ? 255 : (o4>>5)+128);
+		data_out_5 = o5 < -(128<<5) ? 0 : (o5 > (127<<5) ? 255 : (o5>>5)+128);
+		data_out_6 = o6 < -(128<<5) ? 0 : (o6 > (127<<5) ? 255 : (o6>>5)+128);
+		data_out_7 = o7 < -(128<<5) ? 0 : (o7 > (127<<5) ? 255 : (o7>>5)+128);
+	}
 }
