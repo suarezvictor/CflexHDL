@@ -2299,18 +2299,10 @@ typedef void (*idct_kernel_t)(
 
 extern idct_kernel_t idct_kernel;
 
-static inline void JPEGIDCT_internal_col(short *pMCUSrc, const short *pQuant)
+static inline void JPEGIDCT_internal_col(const short *pMCUSrc, short *out)
 {
     idct_kernel //pointer to function
     (
-		pMCUSrc[0*8] * pQuant[0*8],
-		pMCUSrc[1*8] * pQuant[1*8],
-		pMCUSrc[2*8] * pQuant[2*8],
-		pMCUSrc[3*8] * pQuant[3*8],
-		pMCUSrc[4*8] * pQuant[4*8],
-		pMCUSrc[5*8] * pQuant[5*8],
-		pMCUSrc[6*8] * pQuant[6*8],
-		pMCUSrc[7*8] * pQuant[7*8],
 		pMCUSrc[0*8],
 		pMCUSrc[1*8],
 		pMCUSrc[2*8],
@@ -2319,6 +2311,14 @@ static inline void JPEGIDCT_internal_col(short *pMCUSrc, const short *pQuant)
 		pMCUSrc[5*8],
 		pMCUSrc[6*8],
 		pMCUSrc[7*8],
+		out[0*8],
+		out[1*8],
+		out[2*8],
+		out[3*8],
+		out[4*8],
+		out[5*8],
+		out[6*8],
+		out[7*8],
 		1
 	);
 }
@@ -2639,7 +2639,9 @@ int16x8_t mmxZ5, mmxZ10, mmxZ11, mmxZ12, mmxZ13;
         if (u16MCUFlags & (1<<iCol)) // column has data in it
         {
             u16MCUFlags &= ~(1<<iCol); // unmark the col after done
-            JPEGIDCT_internal_col(&pMCUSrc[iCol], &pQuant[iCol]);
+		    for (iRow=0; iRow<64; iRow+=8)
+		       pMCUSrc[iCol+iRow] *= pQuant[iCol+iRow]; //premultiply quantization
+            JPEGIDCT_internal_col(&pMCUSrc[iCol], &pMCUSrc[iCol]);
         } // if column has data in it
     } // for each column
 #endif // NO SIMD
@@ -2648,46 +2650,6 @@ int16x8_t mmxZ5, mmxZ10, mmxZ11, mmxZ12, mmxZ13;
     pOutput = (unsigned char *)pMCUSrc; // store output pixels back into MCU
     for (iRow=0; iRow<64; iRow+=8) // all rows must be calculated
     {
-/*
-        tmp10 = pMCUSrc[iRow+0] + pMCUSrc[iRow+4];
-        tmp11 = pMCUSrc[iRow+0] - pMCUSrc[iRow+4];
-        tmp13 = pMCUSrc[iRow+2] + pMCUSrc[iRow+6];
-        tmp12 = (((pMCUSrc[iRow+2] - pMCUSrc[iRow+6]) * 362)>>8) - tmp13; // 2-6 * 1.414
-        z13 = pMCUSrc[iRow+5] + pMCUSrc[iRow+3];
-        z10 = pMCUSrc[iRow+5] - pMCUSrc[iRow+3];
-        z11 = pMCUSrc[iRow+1] + pMCUSrc[iRow+7];
-        z12 = pMCUSrc[iRow+1] - pMCUSrc[iRow+7];
-        tmp0 = tmp10 + tmp13;
-        tmp3 = tmp10 - tmp13;
-        tmp1 = tmp11 + tmp12;
-        tmp2 = tmp11 - tmp12;
-        tmp7 = z11 + z13;
-        tmp11 = ((z11 - z13)*362)>>8; // * 1.414
-        z5 = ((z10 + z12)*473)>>8; // * 1.8477
-        tmp10 = ((z12*277)>>8) - z5; // * 1.08239
-        tmp12 = ((z10*-669)>>8) + z5; // * 2.61312
-        tmp6 = tmp12 - tmp7;
-        tmp5 = tmp11 - tmp6;
-        tmp4 = tmp10 + tmp5;
-
-        short o0 = ((tmp0 + tmp7)>>5);
-        short o1 = ((tmp1 + tmp6)>>5);
-        short o2 = ((tmp2 + tmp5)>>5);
-        short o3 = ((tmp3 - tmp4)>>5);
-        short o4 = ((tmp3 + tmp4)>>5);
-        short o5 = ((tmp2 - tmp5)>>5);
-        short o6 = ((tmp1 - tmp6)>>5);
-        short o7 = ((tmp0 - tmp7)>>5);
-        
-        pOutput[0] = o0 < -128 ? 0 : (o0 > 127 ? 255 : o0+128);
-        pOutput[1] = o1 < -128 ? 0 : (o1 > 127 ? 255 : o1+128);
-        pOutput[3] = o2 < -128 ? 0 : (o2 > 127 ? 255 : o2+128);
-        pOutput[4] = o3 < -128 ? 0 : (o3 > 127 ? 255 : o3+128);
-        pOutput[5] = o4 < -128 ? 0 : (o4 > 127 ? 255 : o4+128);
-        pOutput[6] = o5 < -128 ? 0 : (o5 > 127 ? 255 : o5+128);
-        pOutput[7] = o6 < -128 ? 0 : (o6 > 127 ? 255 : o6+128);
-        pOutput[8] = o7 < -128 ? 0 : (o7 > 127 ? 255 : o7+128);
-*/
         JPEGIDCT_internal_row(&pMCUSrc[iRow], pOutput);
         pOutput += 8;
     } // for each row

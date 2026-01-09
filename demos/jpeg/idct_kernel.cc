@@ -10,8 +10,8 @@
 #define idct_kernel_aan _idct_kernel //for JPEGDEC
 //#define idct_kernel_loeffler _idct_kernel //for Ultraembedded
 
-//#define idct_stage() pipeline_stage() //enable for pipelined implementation in hardware
-#define idct_stage()
+#define idct_stage() pipeline_stage() //enable for pipelined implementation in hardware
+//#define idct_stage()
 
 void idct_kernel_loeffler(
 	short data_in_0,
@@ -128,10 +128,21 @@ void idct_kernel_aan(
 	short is_y
 )
 {
-    int tmp0,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,tmp7;
-    int tmp10,tmp11,tmp12,tmp13;
-    int z5,z10,z11,z12,z13;
-    int x0,x1,x2,x3,x4,x5,x6,x7;
+    const short K_1_41	= 362;	// 362>>8 = 1.414213562
+    const short K_1_84	= 473;	// 473>>8 = 1.8477
+    const short K_2_61M	= -669;	//-669>>8 = -2.6131259
+    const short K_1_08	= 277; 	// 277>>8 = 1.08239
+
+    //TODO: use exact precision to reduce multipliers' operands width
+    short tmp0,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,tmp7;
+    short x0,x1,x2,x3,x4,x5,x6,x7;
+    short z10,z11,z12,z13; 
+    //short not enough
+    int tmp10;
+    int tmp11;
+    int tmp12;
+    int tmp13;
+    int z5; 
 
     tmp0 = data_in_0;
     tmp4 = data_in_1;
@@ -145,7 +156,7 @@ void idct_kernel_aan(
     tmp10 = tmp0 + tmp2;
     tmp11 = tmp0 - tmp2;
     tmp13 = tmp1 + tmp3;
-    tmp12 = (((tmp1 - tmp3) * 362) >> 8) - tmp13;  // 362>>8 = 1.414213562
+    tmp12 = (((tmp1 - tmp3) * K_1_41) >> 8) - tmp13;  //not wide input operands to multiplier
 
     idct_stage();
 
@@ -162,13 +173,13 @@ void idct_kernel_aan(
 
     idct_stage();
 
-    tmp11 = (((z11 - z13) * 362) >> 8);  // 362>>8 = 1.414213562
-    z5 = (((z10 + z12) * 473) >> 8);  // 473>>8 = 1.8477
+    tmp11 = ((z11 - z13) * K_1_41) >> 8;
+    z5 = ((z10 + z12) * K_1_84) >> 8;
 
     idct_stage();
 
-    tmp12 = ((z10 * -669)>>8) + z5; // -669>>8 = -2.6131259
-    tmp10 = ((z12 * 277)>>8) - z5; // 277>>8 = 1.08239
+    tmp12 = ((z10 * K_2_61M) >> 8) + z5;
+    tmp10 = ((z12 * K_1_08) >> 8) - z5;
 
     idct_stage();
 
