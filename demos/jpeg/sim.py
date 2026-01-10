@@ -193,13 +193,12 @@ class SimSoC(SoCCore):
             self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
 
         # Accelerator --------------------------------------------------------------------------------------
-        from videocodecs import AccelIDCT
-        merge = True, True
-        if merge[0]:
-            self.add_constant("IDCT_MERGE_IN_FIELDS")
-        if merge[1]:
-            self.add_constant("IDCT_MERGE_OUT_FIELDS")
-        self.submodules.idct_kernel = AccelIDCT(mergein=merge[0], mergeout=merge[1])
+        from videocodecs import AccelIDCT, RemapIDCT
+        self.add_constant("IDCT_MERGE_IN_FIELDS")  #deprecated
+        self.add_constant("IDCT_MERGE_OUT_FIELDS") #deprecated
+        instances = 8
+        self.add_constant("IDCT_INSTANCE_COUNT", instances)
+        self.submodules.idct_kernel_remap = RemapIDCT(instances)
 
 
 

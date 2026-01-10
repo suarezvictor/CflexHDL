@@ -2277,31 +2277,10 @@ mcu_done:
 // Inverse DCT
 //
 
-typedef void (*idct_kernel_t)(
-	short data_in_0,
-	short data_in_1,
-	short data_in_2,
-	short data_in_3,
-	short data_in_4,
-	short data_in_5,
-	short data_in_6,
-	short data_in_7,
-	short& data_out_0,
-	short& data_out_1,
-	short& data_out_2,
-	short& data_out_3,
-	short& data_out_4,
-	short& data_out_5,
-	short& data_out_6,
-	short& data_out_7,
-	short is_y
-);
-
-extern idct_kernel_t idct_kernel;
 
 static inline void JPEGIDCT_internal_col(const short *pMCUSrc, short *out)
 {
-    idct_kernel //pointer to function
+    _idct_kernel //pointer to function
     (
 		pMCUSrc[0*8],
 		pMCUSrc[1*8],
@@ -2326,7 +2305,7 @@ static inline void JPEGIDCT_internal_col(const short *pMCUSrc, short *out)
 static inline void JPEGIDCT_internal_row(const short *pMCUSrc, uint8_t *pOutput)
 {
     short o[8];
-    idct_kernel //pointer to function
+    _idct_kernel //pointer to function
     (
 		pMCUSrc[0],
 		pMCUSrc[1],
@@ -2354,6 +2333,76 @@ static inline void JPEGIDCT_internal_row(const short *pMCUSrc, uint8_t *pOutput)
 	pOutput[5] = o[5];
 	pOutput[6] = o[6];
 	pOutput[7] = o[7];
+}
+
+void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool soft)
+{
+    cols |= 1; // column 0 must always be calculated
+    if(soft)
+    {
+		for (int iCol = 0; iCol < 8; iCol++)
+	        JPEGIDCT_internal_col(&src[iCol], &src[iCol]);
+		for (int iRow=0; iRow<64; iRow+=8)
+		    JPEGIDCT_internal_row(&src[iRow], &out[iRow]);
+		return;
+	}
+
+    uint32_t tmp[32];
+
+    volatile uint32_t *basein = (volatile uint32_t *) CSR_IDCT_KERNEL_REMAP_BASE;
+    volatile uint32_t *baseout = (volatile uint32_t *) CSR_IDCT_KERNEL_REMAP_MAP_DOUT0_0_ADDR;
+
+    for (int iCol = 0; iCol < 8; iCol++)
+    {
+		basein[iCol*4+0] = uint16_t(src[iCol*8+0]) | (src[iCol*8+1] << 16);
+		basein[iCol*4+1] = uint16_t(src[iCol*8+2]) | (src[iCol*8+3] << 16);
+		basein[iCol*4+2] = uint16_t(src[iCol*8+4]) | (src[iCol*8+5] << 16);
+		basein[iCol*4+3] = uint16_t(src[iCol*8+6]) | (src[iCol*8+7] << 16);
+	}
+    
+    idct_kernel_remap_is_y_write(1); //set is_y
+    idct_kernel_remap_run_write(0xFF); //start all
+    while(idct_kernel_remap_done_read() != 0xFF);
+    idct_kernel_remap_run_write(0x00); //stops all
+
+    for (int iCol = 0; iCol < 8; iCol++)
+    {
+		tmp[iCol*4+0] = baseout[iCol*4+0];
+		tmp[iCol*4+1] = baseout[iCol*4+1];
+		tmp[iCol*4+2] = baseout[iCol*4+2];
+		tmp[iCol*4+3] = baseout[iCol*4+3];
+    }
+
+    // now do rows
+	//TODO: copy all outputs to inputs in hardware
+    for (int iCol = 0; iCol < 8; iCol++)
+    {
+		basein[iCol*4+0] = tmp[iCol*4+0];
+		basein[iCol*4+1] = tmp[iCol*4+1];
+		basein[iCol*4+2] = tmp[iCol*4+2];
+		basein[iCol*4+3] = tmp[iCol*4+3];
+	}
+
+    idct_kernel_remap_is_y_write(0); //unset is_y
+    idct_kernel_remap_run_write(0xFF); //start all
+    while(idct_kernel_remap_done_read() != 0xFF);
+    idct_kernel_remap_run_write(0x00); //stops all
+
+    for (int iRow=0, iCol=0; iRow<64; iRow+=8, ++iCol) // all rows must be calculated
+    {
+		uint32_t o01 = baseout[iCol*4+0];
+		uint32_t o23 = baseout[iCol*4+1];
+		uint32_t o45 = baseout[iCol*4+2];
+		uint32_t o67 = baseout[iCol*4+3];
+		out[iRow+0] = o01;
+		out[iRow+1] = o01 >> 16;
+		out[iRow+2] = o23;
+		out[iRow+3] = o23 >> 16;
+		out[iRow+4] = o45;
+		out[iRow+5] = o45 >> 16;
+		out[iRow+6] = o67;
+		out[iRow+7] = o67 >> 16;
+    }
 }
 
 static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable)
@@ -2632,27 +2681,10 @@ int16x8_t mmxZ5, mmxZ10, mmxZ11, mmxZ12, mmxZ13;
         vst1q_s16(&pMCUSrc[56], mmxRow7);
 #endif // HAS_NEON
 #if !defined (HAS_SSE) && !defined(HAS_NEON)
-    // do columns first
-    u16MCUFlags |= 1; // column 0 must always be calculated
-    for (int iCol = 0; iCol < 8 && u16MCUFlags; iCol++)
-    {
-        if (u16MCUFlags & (1<<iCol)) // column has data in it
-        {
-            u16MCUFlags &= ~(1<<iCol); // unmark the col after done
-		    for (iRow=0; iRow<64; iRow+=8)
-		       pMCUSrc[iCol+iRow] *= pQuant[iCol+iRow]; //premultiply quantization
-            JPEGIDCT_internal_col(&pMCUSrc[iCol], &pMCUSrc[iCol]);
-        } // if column has data in it
-    } // for each column
+    for (iRow=0; iRow<64; ++iRow)
+       pMCUSrc[iRow] *= pQuant[iRow]; //premultiply quantization
+    JPEGIDCT_internal_block(pMCUSrc, (uint8_t*)pMCUSrc, u16MCUFlags, false);
 #endif // NO SIMD
-    // now do rows
-    u16MCUFlags = pJPEG->u16MCUFlags;
-    pOutput = (unsigned char *)pMCUSrc; // store output pixels back into MCU
-    for (iRow=0; iRow<64; iRow+=8) // all rows must be calculated
-    {
-        JPEGIDCT_internal_row(&pMCUSrc[iRow], pOutput);
-        pOutput += 8;
-    } // for each row
 } /* JPEGIDCT() */
 static void JPEGPutMCU8BitGray(JPEGIMAGE *pJPEG, int x, int iPitch)
 {

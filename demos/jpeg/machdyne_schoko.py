@@ -152,11 +152,12 @@ class BaseSoC(SoCCore):
                 sys_clk_freq = sys_clk_freq)
 
         # Accelerator --------------------------------------------------------------------------------------
-        from videocodecs import AccelIDCT
-        merge = True, True
-        self.add_constant("IDCT_MERGE_IN_FIELDS")
-        self.add_constant("IDCT_MERGE_OUT_FIELDS")
-        self.submodules.idct_kernel = AccelIDCT(mergein=True, mergeout=True)
+        from videocodecs import AccelIDCT, RemapIDCT
+        self.add_constant("IDCT_MERGE_IN_FIELDS")  #deprecated
+        self.add_constant("IDCT_MERGE_OUT_FIELDS") #deprecated
+        instances = 8
+        self.add_constant("IDCT_INSTANCE_COUNT", instances)
+        self.submodules.idct_kernel_remap = RemapIDCT(instances)
 
 # Build --------------------------------------------------------------------------------------------
 
