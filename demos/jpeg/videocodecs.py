@@ -131,6 +131,9 @@ class RemapIDCT(Module, AutoCSR):
             idcts[m].is_y_reg.eq(self.is_y.storage),
           ]
         
-
-        
+        #control register for instant copying of (transposed) outputs to inputs
+        self.ctrl = CSRStorage(1)
+        for m in range(8):
+          self.sync +=  [If(self.ctrl.re, idcts[m].di_reg[n].eq(idcts[n].do_reg[m])) for n in range(8)]
+      
 

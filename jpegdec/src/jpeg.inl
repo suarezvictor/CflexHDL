@@ -2365,6 +2365,10 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
     while(idct_kernel_remap_done_read() != 0xFF);
     idct_kernel_remap_run_write(0x00); //stops all
 
+#ifdef CSR_IDCT_KERNEL_REMAP_CTRL_ADDR
+	//super fast copy of outputs to inputs in hardware
+	idct_kernel_remap_ctrl_write(0xFF);
+#else
     for (int iCol = 0; iCol < 8; iCol++)
     {
 		tmp[iCol*4+0] = baseout[iCol*4+0];
@@ -2373,8 +2377,6 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		tmp[iCol*4+3] = baseout[iCol*4+3];
     }
 
-    // now do rows
-	//TODO: copy all outputs to inputs in hardware
     for (int iCol = 0; iCol < 8; iCol++)
     {
 		basein[iCol*4+0] = tmp[iCol*4+0];
@@ -2382,6 +2384,7 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		basein[iCol*4+2] = tmp[iCol*4+2];
 		basein[iCol*4+3] = tmp[iCol*4+3];
 	}
+#endif
 
     idct_kernel_remap_is_y_write(0); //unset is_y
     idct_kernel_remap_run_write(0xFF); //start all
@@ -2394,6 +2397,7 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		uint32_t o23 = baseout[iCol*4+1];
 		uint32_t o45 = baseout[iCol*4+2];
 		uint32_t o67 = baseout[iCol*4+3];
+		//TODO: make outputs more packed
 		out[iRow+0] = o01;
 		out[iRow+1] = o01 >> 16;
 		out[iRow+2] = o23;

@@ -10,8 +10,8 @@
 #define idct_kernel_aan _idct_kernel //for JPEGDEC
 //#define idct_kernel_loeffler _idct_kernel //for Ultraembedded
 
-#define idct_stage() pipeline_stage() //enable for pipelined implementation in hardware
-//#define idct_stage()
+//#define idct_stage() pipeline_stage() //enable for pipelined implementation in hardware
+#define idct_stage()
 
 void idct_kernel_loeffler(
 	short data_in_0,
