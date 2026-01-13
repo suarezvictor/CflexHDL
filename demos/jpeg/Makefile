@@ -16,7 +16,7 @@ include $(LITEX_ROOT)/litex/soc/software/common.mak
 
 INCLUDE = -I../../include -I../../ultraembedded_jpeg/
 CXXFLAGS += $(INCLUDE) -O2 -fno-threadsafe-statics
-SOCARGS = --timer-uptime --bus-bursting
+SOCARGS = --timer-uptime --bus-bursting #--cpu-variant=lite
 
 all: $(BOARD)
 

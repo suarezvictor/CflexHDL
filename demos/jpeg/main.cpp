@@ -226,17 +226,19 @@ bool idct_benchmark()
     printf("Running IDCT benchmark...\n");
 
 	//keep in SRAM for burst optimization to work (saves 64 cycles)
-	short s[BENCHMARK_REPEATS][JPEGDEC_MCU_ALIGN]; 
-	uint8_t r[BENCHMARK_REPEATS][JPEGDEC_MCU_ALIGN];
-
+	short s[BENCHMARK_REPEATS+1][JPEGDEC_MCU_ALIGN/2];
+	uint8_t r[BENCHMARK_REPEATS+1][JPEGDEC_MCU_ALIGN/2];
+	typedef short (*ps_t)[sizeof(s[0])/sizeof(s[0][0])];
+	ps_t ps = ps_t((uintptr_t(&s[0]) + JPEGDEC_MCU_ALIGN -1) &~ (JPEGDEC_MCU_ALIGN-1));
+	
 	for(int i = 0; i < BENCHMARK_REPEATS; ++i)
+	{
       for(int j = 0; j < 64; ++j)
-          s[i][j] = uint16_t(-(i << 8)) | uint16_t(-j);
+          ps[i][j] = i+j;
+    }
 
 	int	soft_acc = 0;
 	t = highres_ticks();
-	typedef short (*ps_t)[sizeof(s[0])/sizeof(s[0][0])];
-	ps_t ps = ps_t((uintptr_t(&s[0]) + JPEGDEC_MCU_ALIGN -1) &~ (JPEGDEC_MCU_ALIGN-1));
 	for(int i = 0; i < BENCHMARK_REPEATS; ++i)
 	{
 	    JPEGIDCT_internal_block(ps[i], r[i], 0xFF, true);

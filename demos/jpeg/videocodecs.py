@@ -159,10 +159,17 @@ class WBDMAReadWrite(Module, AutoCSR):
         )
 
         self.comb += [
+            self.wb.cyc.eq(~self.done.status),
+            self.wb.stb.eq(~self.done.status),
+            self.wb.adr.eq(self.base_addr.storage>>log2_int(size//8)),
             self.wb.sel.eq((2**(size // 8)) - 1),
             self.wb.cti.eq(wishbone.CTI_BURST_INCREMENTING), # configure SOC with --bus-bursting
             self.wb.bte.eq(0),
+            self.wb.we.eq(0),
         ]
+        if wr_signal is not None:
+            self.comb += self.wb.we.eq(self.start.storage[1]),
+            self.comb += self.wb.dat_w.eq(wr_signal)
 
         # ---------------- Control logic ----------------
         self.sync += [
@@ -175,22 +182,10 @@ class WBDMAReadWrite(Module, AutoCSR):
         ]
 
         if rd_signal is not None:
-            # Capture data on acknowledge (every cycle if bursting enabled)
-            self.sync +=  If(~self.done.status & ~self.wb.we & self.wb.ack, rd_signal.eq(self.wb.dat_r), self.done.status.eq(1));
+            # Capture data on acknowledge (every cycle if bursting enabled and SRAM source)
+            self.sync +=  If(self.wb.stb & ~self.wb.we & self.wb.ack, rd_signal.eq(self.wb.dat_r), self.done.status.eq(1));
 
-        # Also done when write ack
-
-        self.sync +=  If(~self.done.status & self.wb.we & self.wb.ack, self.done.status.eq(1))
-        if wr_signal is not None:
-            self.comb += self.wb.we.eq(self.start.storage[1]),
-            self.comb += self.wb.dat_w.eq(wr_signal)
-        else:
-            self.comb += self.wb.we.eq(0),
-
-        self.comb += [
-            self.wb.cyc.eq(~self.done.status),
-            self.wb.stb.eq(~self.done.status),
-            self.wb.adr.eq(self.base_addr.storage>>log2_int(size//8)),
-        ]
+        # Also set done when write ack
+        self.sync +=  If(self.wb.stb & self.wb.we & self.wb.ack, self.done.status.eq(1))
 
         
