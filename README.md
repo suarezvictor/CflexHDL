@@ -41,5 +41,18 @@ For the DE0-Nano board, use `$ make BOARD=de0nano bitstream load`, the board out
 <br><br>
 *_To limit FPS, set vsync to true when calling fb_init on simulator_main.cpp_
 
+# Advanced examples
+## Hardware accelerated 2D Inverse Discrete Cosine Transform
+
+At the core of the JPEG image enconding, it is the 2D Discrete Cosine Transform (DCT). It is applied to 8x8 luma/chroma pixel blocks and followed by lossy quantization and entropy coding.
+
+In this example a hardware accelerated 2D Inverse DCT was implemented. It is a single C function that can be run on the CPU, and the unmodified code can be automatically translated to Verilog, achieving much faster operation (10X).
+
+It was integrated and tested with two JPEG decoding libraries: Ultraembedded [core_jpeg](https://github.com/ultraembedded/core_jpeg/tree/main/c_model) and [JPEGDEC](https://github.com/bitbank2/JPEGDEC/) (Nlnet funded), producing this result:
+
+![image](doc/jpegsim.png)
+
+See [here](blob/jpeg/demos/jpeg/README.md) for more details.
+
 # Benchmarks
 See [DEMOS](demos/DEMOS.md) page
