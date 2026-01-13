@@ -52,7 +52,7 @@ It was integrated and tested with two JPEG decoding libraries: Ultraembedded [co
 
 ![image](doc/jpegsim.png)
 
-See [here](blob/jpeg/demos/jpeg/README.md) for more details.
+See [here](../../blob/jpeg/demos/jpeg/README.md) for more details.
 
 # Benchmarks
 See [DEMOS](demos/DEMOS.md) page
