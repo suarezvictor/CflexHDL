@@ -1,67 +1,69 @@
-SHELL=bash
-#MAIN_SRC?=human.cc
-MAIN_SRC?=mandel_fp32.cc
+#TODO: see $(LITEX_ROOT)/litex/soc/software/demo/Makefile
+
+BOARD?=sim#gsd_orangecrab
+BUILD_DIR=./build/$(BOARD)
+LITEX_ROOT=../../../litex
+#MAIN_SRC=human
+MAIN_SRC=mandel_fp32
 GENERATOR?=../../src/silice_generator.py
-PARSER=../../cflexparser/clangparser.py
-BUILD?=build
-INCLUDE+=-I../../include -I../../src/ -I`pwd`
-CFLAGS+=-O3 -flto $(INCLUDE) #-DCFLEX_NO_COROUTINES
-GCCFLAGS=-std=c++20 -fcoroutines
-CLANGFLAGS+=-DCFLEX_NO_COROUTINES #clang does not work with coroutines that finish
-SIMULATOR_MAIN=simulator.cpp
-VERILATOR_OPT_FAST?=-O3
 
-#select FP32 core to test
-FP32?=_float_mul
+ifeq ($(filter prerequisites clean,$(MAKECMDGOALS)),)
+include $(BUILD_DIR)/software/include/generated/variables.mak
+endif
 
-all: run
+include $(LITEX_ROOT)/litex/soc/software/common.mak
 
-run: compile
-	$(BUILD)/compiled
+INCLUDE = -I../../include
+CXXFLAGS += -DMAIN_SRC=$(MAIN_SRC).cc $(INCLUDE) -O3
 
-sim_linux:
-	g++ $(INCLUDE) -O3 -ffast-math sim_linux.cpp -DSDL_PIXELFORMAT=SDL_PIXELFORMAT_RGBA32 -lSDL2 -o sim_linux
-	./sim_linux
+all: $(BOARD)
 
+%.o: %.S
+	$(assemble)
 
-compile: $(BUILD)/compiled
+%.o: %.c
+	$(compile)
 
-$(BUILD)/compiled: $(MAIN_SRC) $(SIMULATOR_MAIN)
-	mkdir -p $(BUILD)
-	#g++ -DCFLEX_SIMULATION $(CFLAGS) $(GCCFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled 
-	clang++-17 -DCFLEX_SIMULATION -D$(FP32)=_fp32 $(CFLAGS) $(CLANGFLAGS) $(SIMULATOR_MAIN) -o $(BUILD)/compiled #clang is faster
-	#objdump -D build/compiled > build/compiled.S
+%.o: %.cpp
+	$(compilexx)
 
-test:
-	g++ -I../../include -o fp32 -D$(FP32)=_fp32 $(MAIN_SRC)
-	./fp32
+%.bin: %.elf
+	$(OBJCOPY) -O binary $< $@
+	chmod -x $@
 
-verilog: $(BUILD)/top_instance.v
+firmware: $(BUILD_DIR)/main.bin
 
-$(BUILD)/top_instance.cpp: $(MAIN_SRC)
-	mkdir -p $(BUILD)
-	cpp $(INCLUDE) -DCFLEX_PARSER -D$(FP32)=_fp32 -E $(MAIN_SRC) -o $(BUILD)/top_instance.cpp
+upload: $(BUILD_DIR)/main.bin
+	$(LITEX_ROOT)/litex/tools/litex_term.py /dev/ttyUSB1 --kernel $(BUILD_DIR)/main.bin --speed 115200
+
+$(BUILD_DIR)/main.elf: main.o crt0.o
+	$(CC) -T linker.ld -o $(BUILD_DIR)/main.elf crt0.o main.o $(PACKAGES:%=-L$(BUILD_DIR)/software/%) -L$(BUILDINC_DIRECTORY) $(CPUFLAGS) -nostartfiles $(LIBS:lib%=-l%)
 	
-$(BUILD)/top_instance.si: $(BUILD)/top_instance.cpp $(PARSER)
-	$(GENERATOR) $(BUILD)/top_instance.cpp $(CFLAGS) > $(BUILD)/top_instance.si
+prerequisites: $(BOARD).py
+	python $(BOARD).py --no-compile-gateware
 
-$(BUILD)/top_instance.v: $(BUILD)/top_instance.si
-	silice -f ../../external/silice/bare.v $(BUILD)/top_instance.si -o $(BUILD)/top_instance.v --export fp32
+sim: $(BUILD_DIR)/main.bin verilog
+	VIDEO=1 $(PYTHON) sim.py --sdram-init $(BUILD_DIR)/main.bin
 
-verilator: $(BUILD)/VM_fp32
-	$(BUILD)/VM_fp32
+bitstream: $(BOARD)
 
-$(BUILD)/VM_fp32: $(BUILD)/top_instance.v $(SIMULATOR_MAIN) $(MAIN_SRC)
-	verilator --Mdir $(BUILD) -Wno-PINMISSING -Wno-WIDTH -O2 -cc $(BUILD)/top_instance.v \
-	  --top-module M_fp32 --exe $(SIMULATOR_MAIN) -CFLAGS -DCFLEX_VERILATOR \
-	  -CFLAGS -D$(FP32)=_fp32 \
-	  -CFLAGS -I`pwd` -CFLAGS -I../../../include -CFLAGS -I../../../src/ \
-	  -CFLAGS -DCFLEX_SIMULATION -CFLAGS -DCFLEX_NO_COROUTINES #-CFLAGS -fcoroutines
+gsd_orangecrab: $(BUILD_DIR)/gateware/gsd_orangecrab.bit
+machdyne_schoko: $(BUILD_DIR)/gateware/machdyne_schoko.bit
 
-	  
-	cd build && make OPT_FAST=$(VERILATOR_OPT_FAST) -f VM_fp32.mk #CXX=clang++-17 gcc is faster
+$(BUILD_DIR)/gateware/gsd_orangecrab.bit: $(BOARD).py verilog
+	python $(BOARD).py
+	echo Run openFPGALoader -c ft2232 $(BUILD_DIR)/gateware/gsd_orangecrab.bit
+
+$(BUILD_DIR)/gateware/machdyne_schoko.bit: $(BOARD).py verilog
+	python $(BOARD).py --build --load
+	echo Run openFPGALoader -c ft2232 $(BUILD_DIR)/gateware/machdyne_schoko.bit
+
+verilog: $(BUILD_DIR)/../top_instance.v
+
+$(BUILD_DIR)/../top_instance.v: $(MAIN_SRC).cc
+	cpp $(INCLUDE) -DCFLEX_PARSER -D_shader=_fp32 $(MAIN_SRC).cc -E -o $(BUILD_DIR)/top_instance.cpp
+	$(GENERATOR) $(BUILD_DIR)/top_instance.cpp > $(BUILD_DIR)/top_instance.si
+	silice -f ../../external/silice/bare.v $(BUILD_DIR)/top_instance.si -o $(BUILD_DIR)/../top_instance.v --export fp32
 
 clean:
-	rm -Rf build
-
-
+	rm -Rf build *.elf *.o *.bin
