@@ -48,10 +48,11 @@ class AccelIDCT(Module):
 
 #this permits to access data input of a IDCT block as  matrix transpose
 class RemapIDCT(Module, AutoCSR):
-	def __init__(self, instances, second_source = None):
+	def __init__(self, instances, second_source = None, second_target = None):
 		self.name = "idct_kernel_remap"
 		assert instances == 8
-		assert second_source is None or second_source.nbits==1024
+		assert second_source is None or len(second_source)==1024
+		assert second_target is not None and len(second_target)==512
 
 		idcts = [AccelIDCT() for i in range(instances)]
 		self.submodules += idcts
@@ -99,10 +100,10 @@ class RemapIDCT(Module, AutoCSR):
 				If(idcts[m].run_reg, self.omapped[m][0].status[16:].eq(idcts[m].do_reg[1])),
 				If(idcts[m].run_reg, self.omapped[m][1].status[:16].eq(idcts[m].do_reg[2])),
 				If(idcts[m].run_reg, self.omapped[m][1].status[16:].eq(idcts[m].do_reg[3])),
-				#If(idcts[m].run_reg, self.omapped[m][2].status[:16].eq(idcts[m].do_reg[4])),
-				#If(idcts[m].run_reg, self.omapped[m][2].status[16:].eq(idcts[m].do_reg[5])),
-				#If(idcts[m].run_reg, self.omapped[m][3].status[:16].eq(idcts[m].do_reg[6])),
-				#If(idcts[m].run_reg, self.omapped[m][3].status[16:].eq(idcts[m].do_reg[7])),
+			]
+			self.comb += [
+				second_target[(m*2+0)*32:(m*2+0)*32+32].eq(self.omapped[m][0].status),
+				second_target[(m*2+1)*32:(m*2+1)*32+32].eq(self.omapped[m][1].status),
 			]
 			self.comb += [
 				self.done.status[m].eq(idcts[m].done_reg),
@@ -134,10 +135,11 @@ class RemapIDCT(Module, AutoCSR):
       
 
 class WBDMAReadWrite(Module, AutoCSR):
-    def __init__(self, target_signal, bus_target_width=32):
-        size = len(target_signal)
+    def __init__(self, rd_signal, wr_signal, bus_target_width=32):
+        assert wr_signal is None or rd_signal is None or len(wr_signal) == len(rd_signal)
+        size = len(rd_signal) if rd_signal is not None else len(wr_signal)
 
-        self.start     = CSRStorage(description="Trigger read")
+        self.start     = CSRStorage(2, description="bit 0: Trigger read or write, bit 1: is_write", reset=0)
         self.base_addr = CSRStorage(32, description="Aligned address")
         self.done      = CSRStatus(description="Read completed", reset=1)
 
@@ -157,7 +159,6 @@ class WBDMAReadWrite(Module, AutoCSR):
         )
 
         self.comb += [
-            self.wb.we.eq(0),
             self.wb.sel.eq((2**(size // 8)) - 1),
             self.wb.cti.eq(wishbone.CTI_BURST_INCREMENTING), # configure SOC with --bus-bursting
             self.wb.bte.eq(0),
@@ -167,19 +168,29 @@ class WBDMAReadWrite(Module, AutoCSR):
         self.sync += [
             # Start transaction
             If(self.start.re, self.done.status.eq(~self.start.storage[0])),
-            #If(~self.done.status, Display("started %08X, smaller cti %d stb %d ack %d, larger stb %d ack %d",
+            #If(~self.done.status, Display("WE %d, addr %08X, smaller cti %d stb %d ack %d, larger stb %d ack %d", 
+	        #    self.wb_bus_target.we, 
 	        #    self.wb_bus_target.adr, self.wb_bus_target.cti, self.wb_bus_target.stb, self.wb_bus_target.ack,
 	        #    self.wb.stb, self.wb.ack)), #debug
-
-            # Capture data on acknowledge (every cycle if bursting enabled)
-            If(~self.done.status & self.wb.ack, target_signal.eq(self.wb.dat_r), self.done.status.eq(1))
         ]
 
-        # ---------------- Bus request ----------------
+        if rd_signal is not None:
+            # Capture data on acknowledge (every cycle if bursting enabled)
+            self.sync +=  If(~self.done.status & ~self.wb.we & self.wb.ack, rd_signal.eq(self.wb.dat_r), self.done.status.eq(1));
+
+        # Also done when write ack
+
+        self.sync +=  If(~self.done.status & self.wb.we & self.wb.ack, self.done.status.eq(1))
+        if wr_signal is not None:
+            self.comb += self.wb.we.eq(self.start.storage[1]),
+            self.comb += self.wb.dat_w.eq(wr_signal)
+        else:
+            self.comb += self.wb.we.eq(0),
+
         self.comb += [
             self.wb.cyc.eq(~self.done.status),
             self.wb.stb.eq(~self.done.status),
-            self.wb.adr.eq(self.base_addr.storage>>log2_int(size//8)), #this is since 32 bits is 32 words of 4 bytes
+            self.wb.adr.eq(self.base_addr.storage>>log2_int(size//8)),
         ]
 
         

@@ -152,12 +152,22 @@ class BaseSoC(SoCCore):
                 sys_clk_freq = sys_clk_freq)
 
         # Accelerator --------------------------------------------------------------------------------------
+        # Accelerator --------------------------------------------------------------------------------------
+        from videocodecs import WBDMAReadWrite
+        rdbuf = Signal(1024)
+        wrbuf = Signal(512)
+        self.submodules.idctdma_rd = rd = WBDMAReadWrite(rdbuf, None, bus_target_width=self.bus.data_width)
+        self.bus.add_master(name="idctdma_rd_master", master=rd.wb_bus_target)
+
         from videocodecs import AccelIDCT, RemapIDCT
         self.add_constant("IDCT_MERGE_IN_FIELDS")  #deprecated
         self.add_constant("IDCT_MERGE_OUT_FIELDS") #deprecated
         instances = 8
         self.add_constant("IDCT_INSTANCE_COUNT", instances)
-        self.submodules.idct_kernel_remap = RemapIDCT(instances)
+        self.submodules.idct_kernel_remap = RemapIDCT(instances, second_source=rdbuf, second_target=wrbuf)
+
+        self.submodules.idctdma_wr = wr = WBDMAReadWrite(None, wrbuf, bus_target_width=self.bus.data_width)
+        self.bus.add_master(name="idctdma_wr", master=wr.wb_bus_target)
 
 # Build --------------------------------------------------------------------------------------------
 

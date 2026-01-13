@@ -108,7 +108,7 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		return;
 	}
 
-#ifdef CSR_WBIDCTDMA_BASE
+#ifdef CSR_IDCTDMA_RD_BASE
 	{
 #ifndef JPEGDEC_MCU_ALIGN
 #error JPEGDEC_MCU_ALIGN shold be defined
@@ -116,12 +116,11 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		uintptr_t adr = uintptr_t(&src[0]); //already aligned
 		assert(!(adr & (JPEGDEC_MCU_ALIGN-1)));
 
-		//this takes 146 cycles with bus bursting enabled and source in SRAM
-		wbidctdma_base_addr_write(adr);
-		wbidctdma_start_write(1);
-		while(!wbidctdma_done_read());
-		wbidctdma_start_write(0); //not stricrly required
-
+		//this takes 68 cycles with bus bursting enabled and source in SRAM
+		idctdma_rd_base_addr_write(adr);
+		idctdma_rd_start_write(1);
+		while(!idctdma_rd_done_read());
+		idctdma_rd_start_write(0); //not stricrly required
 		idct_kernel_remap_ctrl_write(2); //set DMA read data as input
 	}
 #endif
@@ -145,24 +144,7 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 
     volatile uint32_t *baseout = (volatile uint32_t *) CSR_IDCT_KERNEL_REMAP_MAP_DOUT0_0_ADDR;
 
-#if 0
-    //this has 286 cycles when not aligned
-    for (int iRow=0, iCol=0; iRow<64; iRow+=8, ++iCol)
-    {
-		uint32_t o0123 = baseout[iCol*2+0];
-		uint32_t o4567 = baseout[iCol*2+1];
-
-		out[iRow+0] = o0123 >> 0;
-		out[iRow+1] = o0123 >> 8;
-		out[iRow+2] = o0123 >> 16;
-		out[iRow+3] = o0123 >> 24;
-		out[iRow+4] = o4567 >> 0;
-		out[iRow+5] = o4567 >> 8;
-		out[iRow+6] = o4567 >> 16;
-		out[iRow+7] = o4567 >> 24;
-    }
-#else
-
+#if 1
     //this takes 177 cycles in SRAM
     for (int i=0; i < 64/4; i+=4) //memcpy-like
     {
@@ -171,8 +153,24 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		((uint32_t*)out)[i+2] = baseout[i+2];
 		((uint32_t*)out)[i+3] = baseout[i+3];
 	}
+#else
+    //this takes 56 cycles in SRAM + the cache flush below
+    //FIXME: it seems it doesn't get to the CPU cache
+    //TODO: try a non-cached region
+	idctdma_wr_base_addr_write(uintptr_t(out));
+	idctdma_wr_start_write(3);
+	while(!idctdma_wr_done_read());
+	idctdma_wr_start_write(0); //not strictly required
 
+#ifdef CONFIG_CPU_HAS_DCACHE
+	//TODO: move to another place so it is called less frequently
+    //flush_cpu_dcache(); //VexRiscV default has it. THIS IS REALLY NEEDED, but takes 256 cycles!!
+	//flush_cpu_dcache_range(out, out + 64);
+#error untested
 
+#else
+#error needs to flush cache to make it work
+#endif
 #endif
 
 }
