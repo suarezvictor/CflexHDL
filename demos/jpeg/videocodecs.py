@@ -82,7 +82,7 @@ class RemapIDCT(Module, AutoCSR):
 		self.omapped = []
 		for m in range(instances):
 			row = []
-			for n in range(4):
+			for n in range(2): #outputs are byte packed so 2 are enough for 6 pixel
 				name = f"map_dout{m}_{n}";
 				r = CSRStatus(32, name=name)
 				setattr(self, name, r)
@@ -99,10 +99,10 @@ class RemapIDCT(Module, AutoCSR):
 				If(idcts[m].run_reg, self.omapped[m][0].status[16:].eq(idcts[m].do_reg[1])),
 				If(idcts[m].run_reg, self.omapped[m][1].status[:16].eq(idcts[m].do_reg[2])),
 				If(idcts[m].run_reg, self.omapped[m][1].status[16:].eq(idcts[m].do_reg[3])),
-				If(idcts[m].run_reg, self.omapped[m][2].status[:16].eq(idcts[m].do_reg[4])),
-				If(idcts[m].run_reg, self.omapped[m][2].status[16:].eq(idcts[m].do_reg[5])),
-				If(idcts[m].run_reg, self.omapped[m][3].status[:16].eq(idcts[m].do_reg[6])),
-				If(idcts[m].run_reg, self.omapped[m][3].status[16:].eq(idcts[m].do_reg[7])),
+				#If(idcts[m].run_reg, self.omapped[m][2].status[:16].eq(idcts[m].do_reg[4])),
+				#If(idcts[m].run_reg, self.omapped[m][2].status[16:].eq(idcts[m].do_reg[5])),
+				#If(idcts[m].run_reg, self.omapped[m][3].status[:16].eq(idcts[m].do_reg[6])),
+				#If(idcts[m].run_reg, self.omapped[m][3].status[16:].eq(idcts[m].do_reg[7])),
 			]
 			self.comb += [
 				self.done.status[m].eq(idcts[m].done_reg),
@@ -133,17 +133,18 @@ class RemapIDCT(Module, AutoCSR):
 				]
       
 
-class WBRead1024(Module, AutoCSR):
+class WBDMAReadWrite(Module, AutoCSR):
     def __init__(self, target_signal, bus_target_width=32):
+        size = len(target_signal)
 
         self.start     = CSRStorage(description="Trigger read")
-        self.base_addr = CSRStorage(32, description="1024-bit aligned address")
+        self.base_addr = CSRStorage(32, description="Aligned address")
         self.done      = CSRStatus(description="Read completed", reset=1)
 
         # wishbone master
         self.wb = wishbone.Interface(
             adr_width  = 32, #FIXME: take from external bus width
-            data_width = 1024
+            data_width = size
         )
         # size converter
         self.wb_bus_target = wishbone.Interface(
@@ -155,11 +156,9 @@ class WBRead1024(Module, AutoCSR):
             slave  = self.wb_bus_target
         )
 
-        pending = Signal(reset=0)
-
         self.comb += [
             self.wb.we.eq(0),
-            self.wb.sel.eq((2**(1024 // 8)) - 1),
+            self.wb.sel.eq((2**(size // 8)) - 1),
             self.wb.cti.eq(wishbone.CTI_BURST_INCREMENTING), # configure SOC with --bus-bursting
             self.wb.bte.eq(0),
         ]
@@ -180,13 +179,7 @@ class WBRead1024(Module, AutoCSR):
         self.comb += [
             self.wb.cyc.eq(~self.done.status),
             self.wb.stb.eq(~self.done.status),
-            self.wb.adr.eq(self.base_addr.storage>>(5+2)), #this is since 32 bits is 32 words of 4 bytes
+            self.wb.adr.eq(self.base_addr.storage>>log2_int(size//8)), #this is since 32 bits is 32 words of 4 bytes
         ]
-        
-        for i in range(32):
-          name = f"dataalt_{i}"
-          csr = CSRStatus(32, name=name)
-          setattr(self, name, csr)
-          self.comb += csr.status.eq(target_signal[i*32:i*32+32])
 
         

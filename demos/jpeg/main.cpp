@@ -108,7 +108,7 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		return;
 	}
 
-#ifdef CSR_WBREAD1024_BASE
+#ifdef CSR_WBIDCTDMA_BASE
 	{
 #ifndef JPEGDEC_MCU_ALIGN
 #error JPEGDEC_MCU_ALIGN shold be defined
@@ -117,24 +117,12 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		assert(!(adr & (JPEGDEC_MCU_ALIGN-1)));
 
 		//this takes 146 cycles with bus bursting enabled and source in SRAM
-		wbread1024_base_addr_write(adr);
-		wbread1024_start_write(1);
-		while(!wbread1024_done_read());
-		wbread1024_start_write(0);
+		wbidctdma_base_addr_write(adr);
+		wbidctdma_start_write(1);
+		while(!wbidctdma_done_read());
+		wbidctdma_start_write(0); //not stricrly required
 
 		idct_kernel_remap_ctrl_write(2); //set DMA read data as input
-	}
-#else
-#error this is deprecated
-    volatile uint32_t *basein = (volatile uint32_t *) CSR_IDCT_KERNEL_REMAP_MAP_DIN0_0_ADDR;
-    //this takes 362 cycles is source is in SRAM
-
-    for (int iCol = 0; iCol < 8; iCol++) //memcpy-like
-    {
-		basein[iCol*4+0] = uint16_t(src[iCol*8+0]) | (src[iCol*8+1] << 16);
-		basein[iCol*4+1] = uint16_t(src[iCol*8+2]) | (src[iCol*8+3] << 16);
-		basein[iCol*4+2] = uint16_t(src[iCol*8+4]) | (src[iCol*8+5] << 16);
-		basein[iCol*4+3] = uint16_t(src[iCol*8+6]) | (src[iCol*8+7] << 16);
 	}
 #endif
 
@@ -155,13 +143,14 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		idct_kernel_remap_run_write(0x00); //stops all
 	}
 
-    //this takes 286 cycles! (about half the rest)
     volatile uint32_t *baseout = (volatile uint32_t *) CSR_IDCT_KERNEL_REMAP_MAP_DOUT0_0_ADDR;
 
+#if 0
+    //this has 286 cycles when not aligned
     for (int iRow=0, iCol=0; iRow<64; iRow+=8, ++iCol)
     {
-		uint32_t o0123 = baseout[iCol*4+0];
-		uint32_t o4567 = baseout[iCol*4+1];
+		uint32_t o0123 = baseout[iCol*2+0];
+		uint32_t o4567 = baseout[iCol*2+1];
 
 		out[iRow+0] = o0123 >> 0;
 		out[iRow+1] = o0123 >> 8;
@@ -172,6 +161,20 @@ void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool 
 		out[iRow+6] = o4567 >> 16;
 		out[iRow+7] = o4567 >> 24;
     }
+#else
+
+    //this takes 177 cycles in SRAM
+    for (int i=0; i < 64/4; i+=4) //memcpy-like
+    {
+		((uint32_t*)out)[i+0] = baseout[i+0];
+		((uint32_t*)out)[i+1] = baseout[i+1];
+		((uint32_t*)out)[i+2] = baseout[i+2];
+		((uint32_t*)out)[i+3] = baseout[i+3];
+	}
+
+
+#endif
+
 }
 
 #ifdef JPEGDEC_OTHER_PLATFORM

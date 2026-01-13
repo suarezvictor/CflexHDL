@@ -194,11 +194,11 @@ class SimSoC(SoCCore):
 
         # Accelerator --------------------------------------------------------------------------------------
 
-        from videocodecs import WBRead1024
+        from videocodecs import WBDMAReadWrite
         rdbuf = Signal(1024)
         if rdbuf is not None:
-            self.submodules.wbread1024 = wbread1024 = WBRead1024(rdbuf, bus_target_width=self.bus.data_width)
-            self.bus.add_master(name="wbread1024_master", master=wbread1024.wb_bus_target)
+            self.submodules.wbidctdma = wbidctdma = WBDMAReadWrite(rdbuf, bus_target_width=self.bus.data_width)
+            self.bus.add_master(name="wbdmareadwrite_master", master=wbidctdma.wb_bus_target)
 
         from videocodecs import AccelIDCT, RemapIDCT
         self.add_constant("IDCT_MERGE_IN_FIELDS")  #deprecated
