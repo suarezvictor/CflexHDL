@@ -193,12 +193,21 @@ class SimSoC(SoCCore):
             self.videophy.comb += video_pads.valid.eq(~self.video_framebuffer.underflow)
 
         # Accelerator --------------------------------------------------------------------------------------
+
+        from videocodecs import WBRead1024
+        rdbuf = Signal(1024)
+        if rdbuf is not None:
+            self.submodules.wbread1024 = wbread1024 = WBRead1024(rdbuf, bus_target_width=self.bus.data_width)
+            self.bus.add_master(name="wbread1024_master", master=wbread1024.wb_bus_target)
+
         from videocodecs import AccelIDCT, RemapIDCT
         self.add_constant("IDCT_MERGE_IN_FIELDS")  #deprecated
         self.add_constant("IDCT_MERGE_OUT_FIELDS") #deprecated
         instances = 8
         self.add_constant("IDCT_INSTANCE_COUNT", instances)
-        self.submodules.idct_kernel_remap = RemapIDCT(instances)
+        self.submodules.idct_kernel_remap = RemapIDCT(instances, second_source=rdbuf)
+        
+        
 
 
 
@@ -275,7 +284,6 @@ def main():
 
     soc.add_constant("LITEX_SIMULATION") #this is to make the software know if it's simulation
     soc.platform.add_source("build/top_instance.v")
-
 
     builder = Builder(soc, **builder_kwargs)
     builder.build(

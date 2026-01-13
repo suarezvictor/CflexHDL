@@ -59,6 +59,7 @@
 #define HUFF11SIZE (1<<11)
 #define DC_TABLE_SIZE 1024
 #define DCTSIZE 64
+#define JPEGDEC_MCU_ALIGN 256
 #define MAX_MCU_COUNT 6
 #define MAX_COMPS_IN_SCAN 4
 #define MAX_BUFFERED_PIXELS 2048
@@ -74,12 +75,13 @@
 #define JPEG_LUMA_ONLY 64
 #define JPEG_USES_DMA 128
 
-#define MCU0 (DCTSIZE * 0)
-#define MCU1 (DCTSIZE * 1)
-#define MCU2 (DCTSIZE * 2)
-#define MCU3 (DCTSIZE * 3)
-#define MCU4 (DCTSIZE * 4)
-#define MCU5 (DCTSIZE * 5)
+#define MCU0 (DCTSIZE * 0*4)
+#define MCU1 (DCTSIZE * 1*4)
+#define MCU2 (DCTSIZE * 2*4)
+#define MCU3 (DCTSIZE * 3*4)
+#define MCU4 (DCTSIZE * 4*4)
+#define MCU5 (DCTSIZE * 5*4)
+#define MCU6 (DCTSIZE * 6*4) //6 matches MAX_MCU_COUNT
 
 #if defined(__arm64__) || defined(__aarch64__) || defined (__x86_64__)
 #define REGISTER_WIDTH 64
@@ -230,9 +232,15 @@ typedef struct jpeg_image_tag
     uint16_t *usPixels; // needs to be 16-byte aligned for S3 SIMD
     uint16_t usUnalignedPixels[MAX_BUFFERED_PIXELS+8];
     int16_t *sMCUs; // needs to be 16-byte aligned for S3 SIMD
-    int16_t sUnalignedMCUs[8+(DCTSIZE * MAX_MCU_COUNT)]; // 4:2:0 needs 6 DCT blocks per MCU
+#ifdef JPEGDEC_MCU_ALIGN
+	//this needs to point to SRAM so DMA burst optimization works
+    int16_t *sUnalignedMCUs; // 4:2:0 needs 6 DCT blocks per MCU;
+#else
+#warning if no JPEGDEC_MCU_ALIGN is defined, it gets to main RAM and is slow
+    int16_t sUnalignedMCUs[JPEGDEC_MCU_ALIGN+MCU6]; // 4:2:0 needs 6 DCT blocks per MCU
+#endif
     void *pFramebuffer;
-    int16_t sQuantTable[DCTSIZE*4]; // quantization tables
+    int16_t sQuantTable[MCU4]; // quantization tables
     uint8_t ucFileBuf[JPEG_FILE_BUF_SIZE]; // holds temp data and pixel stack
     uint8_t ucHuffDC[DC_TABLE_SIZE * 2]; // up to 2 'short' tables
     uint16_t usHuffAC[HUFF11SIZE * 2];
@@ -282,7 +290,9 @@ class JPEGDEC
     int getPixelType();
     void setMaxOutputSize(int iMaxMCUs);
 
+#ifndef JPEGDEC_MCU_ALIGN //FIXME: use constructor for this
   private:
+#endif
     JPEGIMAGE _jpeg;
 };
 #else

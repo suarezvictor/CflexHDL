@@ -565,7 +565,14 @@ static const uint16_t usRangeTableB[] = {0x0000,0x0000,0x0000,0x0000,0x0000,0x00
 //
 int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw)
 {
+#ifdef JPEGDEC_MCU_ALIGN
+    uint16_t *uMCUs = pJPEG->sUnalignedMCUs;
     memset(pJPEG, 0, sizeof(JPEGIMAGE));
+    pJPEG->sUnalignedMCUs = uMCUs;
+#else
+    memset(pJPEG, 0, sizeof(JPEGIMAGE));
+#endif
+
     pJPEG->ucMemType = JPEG_MEM_RAM;
     pJPEG->pfnRead = readRAM;
     pJPEG->pfnSeek = seekMem;
@@ -582,7 +589,13 @@ int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALL
 //
 int JPEG_openFile(JPEGIMAGE *pJPEG, const char *szFilename, JPEG_DRAW_CALLBACK *pfnDraw)
 {
+#ifdef JPEGDEC_MCU_ALIGN
+    uint16_t *uMCUs = pJPEG->sUnalignedMCUs;
     memset(pJPEG, 0, sizeof(JPEGIMAGE));
+    pJPEG->sUnalignedMCUs = uMCUs;
+#else
+    memset(pJPEG, 0, sizeof(JPEGIMAGE));
+#endif
     pJPEG->ucMemType = JPEG_MEM_RAM;
     pJPEG->pfnRead = readFile;
     pJPEG->pfnSeek = seekFile;
@@ -1581,14 +1594,17 @@ static int JPEGParseInfo(JPEGIMAGE *pPage, int bExtractThumb)
     pPage->pFramebuffer = NULL; // this must be set AFTER calling this function
     // make sure usPixels is 16-byte aligned for S3 SIMD (and possibly others)
     i = (int)(int64_t)pPage->usUnalignedPixels;
-    i &= 15;
-    if (i == 0) i = 16; // already 16-byte aligned
-    pPage->usPixels = &pPage->usUnalignedPixels[(16-i)>>1];
+    i &= JPEGDEC_MCU_ALIGN-1;
+    if (i == 0) i = JPEGDEC_MCU_ALIGN; // already 16-byte aligned
+    pPage->usPixels = &pPage->usUnalignedPixels[(JPEGDEC_MCU_ALIGN-i)>>1];
     // do the same for the MCU buffers
-    i = (int)(int64_t)pPage->sUnalignedMCUs;
-    i &= 15;
-    if (i == 0) i = 16;
-    pPage->sMCUs = &pPage->sUnalignedMCUs[(16-i)>>1];
+    i = (int)(int64_t)(pPage->sUnalignedMCUs);
+    i &= JPEGDEC_MCU_ALIGN-1;
+    if (i == 0) i = JPEGDEC_MCU_ALIGN;
+    pPage->sMCUs = pPage->sUnalignedMCUs + ((JPEGDEC_MCU_ALIGN-i)>>1);
+#ifdef JPEGDEC_MCU_ALIGN
+    printf("sUnalignedMCUs %p, aligned MCUs %p\n", pPage->sUnalignedMCUs, pPage->sMCUs);
+#endif
 
     if (bExtractThumb) // seek to the start of the thumbnail image
     {
@@ -2276,138 +2292,6 @@ mcu_done:
 //
 // Inverse DCT
 //
-
-
-static inline void JPEGIDCT_internal_col(const short *pMCUSrc, short *out)
-{
-    _idct_kernel //pointer to function
-    (
-		pMCUSrc[0*8],
-		pMCUSrc[1*8],
-		pMCUSrc[2*8],
-		pMCUSrc[3*8],
-		pMCUSrc[4*8],
-		pMCUSrc[5*8],
-		pMCUSrc[6*8],
-		pMCUSrc[7*8],
-		out[0*8],
-		out[1*8],
-		out[2*8],
-		out[3*8],
-		out[4*8],
-		out[5*8],
-		out[6*8],
-		out[7*8],
-		1
-	);
-}
-
-static inline void JPEGIDCT_internal_row(const short *pMCUSrc, uint8_t *pOutput)
-{
-    short o[8];
-    _idct_kernel //pointer to function
-    (
-		pMCUSrc[0],
-		pMCUSrc[1],
-		pMCUSrc[2],
-		pMCUSrc[3],
-		pMCUSrc[4],
-		pMCUSrc[5],
-		pMCUSrc[6],
-		pMCUSrc[7],
-		o[0],
-		o[1],
-		o[2],
-		o[3],
-		o[4],
-		o[5],
-		o[6],
-		o[7],
-		0
-	);
-	pOutput[0] = o[0];
-	pOutput[1] = o[1];
-	pOutput[2] = o[2];
-	pOutput[3] = o[3];
-	pOutput[4] = o[4];
-	pOutput[5] = o[5];
-	pOutput[6] = o[6];
-	pOutput[7] = o[7];
-}
-
-void JPEGIDCT_internal_block(short src[64], uint8_t out[64], uint8_t cols, bool soft)
-{
-    cols |= 1; // column 0 must always be calculated
-    if(soft)
-    {
-		for (int iCol = 0; iCol < 8; iCol++)
-	        JPEGIDCT_internal_col(&src[iCol], &src[iCol]);
-		for (int iRow=0; iRow<64; iRow+=8)
-		    JPEGIDCT_internal_row(&src[iRow], &out[iRow]);
-		return;
-	}
-
-    uint32_t tmp[32];
-
-    volatile uint32_t *basein = (volatile uint32_t *) CSR_IDCT_KERNEL_REMAP_BASE;
-    volatile uint32_t *baseout = (volatile uint32_t *) CSR_IDCT_KERNEL_REMAP_MAP_DOUT0_0_ADDR;
-
-    for (int iCol = 0; iCol < 8; iCol++)
-    {
-		basein[iCol*4+0] = uint16_t(src[iCol*8+0]) | (src[iCol*8+1] << 16);
-		basein[iCol*4+1] = uint16_t(src[iCol*8+2]) | (src[iCol*8+3] << 16);
-		basein[iCol*4+2] = uint16_t(src[iCol*8+4]) | (src[iCol*8+5] << 16);
-		basein[iCol*4+3] = uint16_t(src[iCol*8+6]) | (src[iCol*8+7] << 16);
-	}
-    
-    idct_kernel_remap_is_y_write(1); //set is_y
-    idct_kernel_remap_run_write(0xFF); //start all
-    while(idct_kernel_remap_done_read() != 0xFF);
-    idct_kernel_remap_run_write(0x00); //stops all
-
-#ifdef CSR_IDCT_KERNEL_REMAP_CTRL_ADDR
-	//super fast copy of outputs to inputs in hardware
-	idct_kernel_remap_ctrl_write(0xFF);
-#else
-    for (int iCol = 0; iCol < 8; iCol++)
-    {
-		tmp[iCol*4+0] = baseout[iCol*4+0];
-		tmp[iCol*4+1] = baseout[iCol*4+1];
-		tmp[iCol*4+2] = baseout[iCol*4+2];
-		tmp[iCol*4+3] = baseout[iCol*4+3];
-    }
-
-    for (int iCol = 0; iCol < 8; iCol++)
-    {
-		basein[iCol*4+0] = tmp[iCol*4+0];
-		basein[iCol*4+1] = tmp[iCol*4+1];
-		basein[iCol*4+2] = tmp[iCol*4+2];
-		basein[iCol*4+3] = tmp[iCol*4+3];
-	}
-#endif
-
-    idct_kernel_remap_is_y_write(0); //unset is_y
-    idct_kernel_remap_run_write(0xFF); //start all
-    while(idct_kernel_remap_done_read() != 0xFF);
-    idct_kernel_remap_run_write(0x00); //stops all
-
-    for (int iRow=0, iCol=0; iRow<64; iRow+=8, ++iCol) // all rows must be calculated
-    {
-		uint32_t o01 = baseout[iCol*4+0];
-		uint32_t o23 = baseout[iCol*4+1];
-		uint32_t o45 = baseout[iCol*4+2];
-		uint32_t o67 = baseout[iCol*4+3];
-		//TODO: make outputs more packed
-		out[iRow+0] = o01;
-		out[iRow+1] = o01 >> 16;
-		out[iRow+2] = o23;
-		out[iRow+3] = o23 >> 16;
-		out[iRow+4] = o45;
-		out[iRow+5] = o45 >> 16;
-		out[iRow+6] = o67;
-		out[iRow+7] = o67 >> 16;
-    }
-}
 
 static void JPEGIDCT(JPEGIMAGE *pJPEG, int iMCUOffset, int iQuantTable)
 {
@@ -3184,9 +3068,9 @@ static void JPEGPutMCU11(JPEGIMAGE *pJPEG, int x, int iPitch)
         pOutput += x; // 4 bytes per pixel, not 2
     }   
 
-    pY  = (unsigned char *)&pJPEG->sMCUs[0*DCTSIZE];
-    pCb = (unsigned char *)&pJPEG->sMCUs[1*DCTSIZE];
-    pCr = (unsigned char *)&pJPEG->sMCUs[2*DCTSIZE];
+    pY  = (unsigned char *)&pJPEG->sMCUs[MCU0];
+    pCb = (unsigned char *)&pJPEG->sMCUs[MCU1];
+    pCr = (unsigned char *)&pJPEG->sMCUs[MCU2];
 
     if (pJPEG->iOptions & JPEG_SCALE_HALF)
     {
@@ -3464,9 +3348,9 @@ static void JPEGPutMCU22(JPEGIMAGE *pJPEG, int x, int iPitch)
     if (pJPEG->ucPixelType == RGB8888) {
         pOutput += x; // 4 bytes per pixel, not 2
     }
-    pY  = (unsigned char *)&pJPEG->sMCUs[0*DCTSIZE];
-    pCb = (unsigned char *)&pJPEG->sMCUs[4*DCTSIZE];
-    pCr = (unsigned char *)&pJPEG->sMCUs[5*DCTSIZE];
+    pY  = (unsigned char *)&pJPEG->sMCUs[MCU0];
+    pCb = (unsigned char *)&pJPEG->sMCUs[MCU4];
+    pCr = (unsigned char *)&pJPEG->sMCUs[MCU5];
     
     if (pJPEG->iOptions & JPEG_SCALE_HALF) // special handling of 1/2 size (pixel averaging)
     {
@@ -4449,9 +4333,9 @@ static void JPEGPutMCU12(JPEGIMAGE *pJPEG, int x, int iPitch)
         pOutput += x; // 4 bytes per pixel, not 2
     }   
 
-    pY  = (uint8_t *)&pJPEG->sMCUs[0*DCTSIZE];
-    pCb = (uint8_t *)&pJPEG->sMCUs[2*DCTSIZE];
-    pCr = (uint8_t *)&pJPEG->sMCUs[3*DCTSIZE];
+    pY  = (uint8_t *)&pJPEG->sMCUs[MCU0];
+    pCb = (uint8_t *)&pJPEG->sMCUs[MCU2];
+    pCr = (uint8_t *)&pJPEG->sMCUs[MCU3];
     
     if (pJPEG->iOptions & JPEG_SCALE_HALF)
     {
@@ -4625,9 +4509,9 @@ static void JPEGPutMCU21(JPEGIMAGE *pJPEG, int x, int iPitch)
         pOutput += x; // 4 bytes per pixel, not 2
     }   
 
-    pY  = (uint8_t *)&pJPEG->sMCUs[0*DCTSIZE];
-    pCb = (uint8_t *)&pJPEG->sMCUs[2*DCTSIZE];
-    pCr = (uint8_t *)&pJPEG->sMCUs[3*DCTSIZE];
+    pY  = (uint8_t *)&pJPEG->sMCUs[MCU0];
+    pCb = (uint8_t *)&pJPEG->sMCUs[MCU2];
+    pCr = (uint8_t *)&pJPEG->sMCUs[MCU3];
     
     if (pJPEG->iOptions & JPEG_SCALE_HALF)
     {

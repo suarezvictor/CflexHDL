@@ -63,7 +63,13 @@ void JPEGDEC::setMaxOutputSize(int iMaxMCUs)
 //
 int JPEGDEC::openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw)
 {
+#ifdef JPEGDEC_MCU_ALIGN	
+    int16_t *uMCUs = _jpeg.sUnalignedMCUs;
     memset(&_jpeg, 0, sizeof(JPEGIMAGE));
+    _jpeg.sUnalignedMCUs = uMCUs;
+#else
+    memset(&_jpeg, 0, sizeof(JPEGIMAGE));
+#endif
     _jpeg.ucMemType = JPEG_MEM_RAM;
     _jpeg.pfnRead = readRAM;
     _jpeg.pfnSeek = seekMem;
@@ -78,7 +84,13 @@ int JPEGDEC::openRAM(uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw)
 
 int JPEGDEC::openFLASH(const uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw)
 {
+#ifdef JPEGDEC_MCU_ALIGN	
+    int16_t *uMCUs = _jpeg.sUnalignedMCUs;
     memset(&_jpeg, 0, sizeof(JPEGIMAGE));
+    _jpeg.sUnalignedMCUs = uMCUs;
+#else
+    memset(&_jpeg, 0, sizeof(JPEGIMAGE));
+#endif
     _jpeg.ucMemType = JPEG_MEM_FLASH;
     _jpeg.pfnRead = readFLASH;
     _jpeg.pfnSeek = seekMem;
@@ -154,7 +166,13 @@ int JPEGDEC::getJPEGType()
 #ifdef __LINUX__
 int JPEGDEC::open(const char *szFilename, JPEG_DRAW_CALLBACK *pfnDraw)
 {
+#ifdef JPEGDEC_MCU_ALIGN	
+    int16_t *uMCUs = _jpeg.sUnalignedMCUs;
     memset(&_jpeg, 0, sizeof(JPEGIMAGE));
+    _jpeg.sUnalignedMCUs = uMCUs;
+#else
+    memset(&_jpeg, 0, sizeof(JPEGIMAGE));
+#endif
     _jpeg.pfnRead = readFile;
     _jpeg.pfnClose = closeFile;
     _jpeg.pfnSeek = seekFile;
