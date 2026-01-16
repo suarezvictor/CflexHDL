@@ -194,7 +194,7 @@ class CFlexSiliceGenerator(CFlexBasicCPPGenerator):
         expr += "\n" + self.generate_stmt(f"{bus}_we = 0; {bus}_stb = 1; {bus}_cyc = 1; ")
         expr += "\n" + self.generate_stmt(f"if(!({bus}_stb && {bus}_r_ack))" + " { " + f"while(!({bus}_stb && {bus}_r_ack))" + "{ } }")
         expr += "\n" + self.generate_stmt(f"{lhs} = {bus}_dat_r;")
-        expr += "\n" + self.generate_stmt(f"{bus}_stb = 0;")
+        expr += "\n" + self.generate_stmt(f"{bus}_stb = 0; {bus}_cyc = 0;")+"\n"
         return expr;
 
     def generate_pointer_write(self, ptr, rhs):
