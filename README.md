@@ -61,5 +61,23 @@ Examples were written using floating point values, including a "shader" (computa
 
 See [here](https://github.com/suarezvictor/CflexHDL/blob/float/demos/fp32/README.md) for additional details.
 
+## Pointer syntax support for accessing memory buses
+This feature is make even easier to write hardware accelerators that access memory, do processing, and put results in another buffer. It is worth to note that few "C to Verilog" tools are able to achieve that, since they usually restricts access to specific on-chip memory (BRAM) or if not, you have to resort to huge and/or propietary toolchains.
+
+as an example of this CflexHDL capaability, an existing graphics accelerator (line drawing core with alpha blending capability) was modified to use plain C pointer syntax for accessing the buses, instead of predefined macros from the library. See the resulting code [line32a.cc](https://github.com/openconcepts-ar/accel2d/blob/pointers/line32a.cc) and [its diff](https://github.com/openconcepts-ar/accel2d/compare/master...pointers#diff-91db8076a23d326f614f1184676b13dda9b5c00c623308cc09a877068ade838e)
+
+This way, a long sequence of bus access "instructions", like a bus read, are now a one-liner:  
+
+![image](doc/pointer_syntax_example.png)  
+
+Pointer arithmetic is the same as in the C language, that means, it is "sizeof" aware: pointer addresses are incremented in multiples of the pointee size, and the same is supported for pointer substraction (resulting on number of in-between pointee elements). This is used in the line core to advance to next lines or columns, optionally backwards.
+
+The pointer feature is used for a "Image blitting" demo which uses the line drawing accelerator as a form of 2D DMA engine, to copy an image from a rectangular block of memory to another place (the framebuffer), optionally processing colors:  
+
+![image](doc/pointer_blit_app.png)  
+
+The implementation of the feature is in [silice_generator.py](src/silice_generator.py), where the pointer dereferencing is detected by the parser and translated to bus access signaling.  
+
+
 # Benchmarks
 See [DEMOS](demos/DEMOS.md) page
