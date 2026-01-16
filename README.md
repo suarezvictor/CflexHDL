@@ -54,5 +54,10 @@ It was integrated and tested with two JPEG decoding libraries: Ultraembedded [co
 
 See [here](../../blob/jpeg/demos/jpeg/README.md) for more details.
 
+## Floating point types support
+Examples were written using floating point values, including a "shader" (computation of the pixel color corresponding to each coordinate and frame number). Instead of running on a GPU as usual, it gets hardwired as a logic circuit from its C source.  
+  
+![image](doc/human.png)
+
 # Benchmarks
 See [DEMOS](demos/DEMOS.md) page
