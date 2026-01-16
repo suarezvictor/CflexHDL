@@ -57,7 +57,9 @@ See [here](../../blob/jpeg/demos/jpeg/README.md) for more details.
 ## Floating point types support
 Examples were written using floating point values, including a "shader" (computation of the pixel color corresponding to each coordinate and frame number). Instead of running on a GPU as usual, it gets hardwired as a logic circuit from its C source.  
   
-![image](doc/human.png)
+![image](doc/human.png)  
+
+See [here](https://github.com/suarezvictor/CflexHDL/blob/float/demos/fp32/README.md) for additional details.
 
 # Benchmarks
 See [DEMOS](demos/DEMOS.md) page
